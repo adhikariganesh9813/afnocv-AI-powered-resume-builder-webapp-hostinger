@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — AfnoCV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/dashboard.html" class="brand">AfnoCV</a>
+    <nav class="topbar-nav">
+      <a href="/dashboard.html" class="nav-link is-active">Dashboard</a>
+      <a href="/profile.html" class="nav-link">My Profile</a>
+      <button type="button" id="signout-btn" class="nav-link nav-link-button">Sign Out</button>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="page-heading">
+    <h1>Generate a tailored resume</h1>
+    <p>Paste the job description, pick how closely you want to match it, and generate.</p>
+  </div>
+
+  <div class="banner banner-warning" id="profile-warning" hidden>
+    Your profile is empty. <a href="/profile.html">Fill in your details</a> before generating a resume.
+  </div>
+
+  <section class="card">
+    <h2 class="card-title">Job Description</h2>
+    <div class="form-field">
+      <label for="job-description">Paste the full job posting text</label>
+      <textarea id="job-description" rows="12" placeholder="Paste the job description here..."></textarea>
+      <span class="field-hint" id="jd-count">0 characters</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">Resume Type</h2>
+    <p class="card-subtitle">How aggressively should your existing experience be rewritten to match the posting?</p>
+    <div class="resume-types">
+      <label class="resume-type">
+        <input type="radio" name="resumeType" value="natural" />
+        <span class="resume-type-body">
+          <span class="resume-type-name">Natural</span>
+          <span class="resume-type-desc">Keep your wording as-is. Only reorders sections for relevance.</span>
+        </span>
+      </label>
+      <label class="resume-type">
+        <input type="radio" name="resumeType" value="basic_match" />
+        <span class="resume-type-body">
+          <span class="resume-type-name">Basic Match</span>
+          <span class="resume-type-desc">Light touch-ups and light keyword alignment.</span>
+        </span>
+      </label>
+      <label class="resume-type">
+        <input type="radio" name="resumeType" value="max_match" checked />
+        <span class="resume-type-body">
+          <span class="resume-type-name">Max Match</span>
+          <span class="resume-type-desc">Rewrites bullets to mirror the posting's language and priorities.</span>
+        </span>
+      </label>
+      <label class="resume-type">
+        <input type="radio" name="resumeType" value="ultra_match" />
+        <span class="resume-type-body">
+          <span class="resume-type-name">Ultra Match</span>
+          <span class="resume-type-desc">Most aggressive keyword alignment for ATS screening.</span>
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <div class="generate-row">
+    <p class="generate-note" id="generate-note"></p>
+    <button type="button" id="generate-btn" class="btn-primary btn-large">Generate Resume</button>
+  </div>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

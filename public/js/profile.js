@@ -1,4 +1,6 @@
-const STORAGE_KEY = 'resumeProfile';
+Auth.requirePage();
+
+document.getElementById('signout-btn').addEventListener('click', Auth.signOut);
 
 // ---------- Template cloning ----------
 
@@ -36,40 +38,45 @@ function addBulletRow(bulletsList, text) {
 
 // ---------- Tag inputs (chips) ----------
 
-function initTagInput(wrapperEl, initialTags) {
-  const tagsEl = wrapperEl.querySelector('.tags');
-  const entryEl = wrapperEl.querySelector('.tag-entry');
+function initTagInput(wrapperEl) {
+  if (wrapperEl.dataset.tagInputReady) return;
+  wrapperEl.dataset.tagInputReady = 'true';
 
-  function addTag(text) {
-    const value = text.trim();
-    if (!value) return;
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = value;
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.textContent = '✕';
-    removeBtn.addEventListener('click', () => tag.remove());
-    tag.appendChild(removeBtn);
-    tagsEl.appendChild(tag);
-  }
+  const entryEl = wrapperEl.querySelector('.tag-entry');
 
   entryEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      addTag(entryEl.value);
+      addTag(wrapperEl, entryEl.value);
       entryEl.value = '';
     }
   });
 
   entryEl.addEventListener('blur', () => {
     if (entryEl.value.trim()) {
-      addTag(entryEl.value);
+      addTag(wrapperEl, entryEl.value);
       entryEl.value = '';
     }
   });
+}
 
-  (initialTags || []).forEach(addTag);
+function addTag(wrapperEl, text) {
+  const value = text.trim();
+  if (!value) return;
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = value;
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.addEventListener('click', () => tag.remove());
+  tag.appendChild(removeBtn);
+  wrapperEl.querySelector('.tags').appendChild(tag);
+}
+
+function setTags(wrapperEl, tags) {
+  wrapperEl.querySelector('.tags').innerHTML = '';
+  (tags || []).forEach((t) => addTag(wrapperEl, t));
 }
 
 function getTags(wrapperEl) {
@@ -202,9 +209,9 @@ function populateForm(profile) {
   const categories = (profile.skills && profile.skills.categories) || [];
   const programming = categories.find((c) => c.name === 'Programming Languages');
   const frameworks = categories.find((c) => c.name === 'Frameworks/Tools');
-  initTagInput(document.getElementById('skills-programming'), programming ? programming.items : []);
-  initTagInput(document.getElementById('skills-frameworks'), frameworks ? frameworks.items : []);
-  initTagInput(document.getElementById('coursework'), profile.coursework || []);
+  setTags(document.getElementById('skills-programming'), programming ? programming.items : []);
+  setTags(document.getElementById('skills-frameworks'), frameworks ? frameworks.items : []);
+  setTags(document.getElementById('coursework'), profile.coursework || []);
 
   (profile.education || []).forEach((entry) => {
     const card = addEntry('education-list', 'education-template');
@@ -238,7 +245,7 @@ function populateForm(profile) {
       const el = card.querySelector(`[data-field="${key}"]`);
       if (el) el.value = entry[key] || '';
     });
-    initTagInput(card.querySelector('.tag-input'), entry.technologies || []);
+    setTags(card.querySelector('.tag-input'), entry.technologies || []);
     const bulletsList = card.querySelector('.bullets-list');
     (entry.bullets || []).forEach((text) => addBulletRow(bulletsList, text));
   });
@@ -254,27 +261,54 @@ function populateForm(profile) {
 
 // ---------- Save / load ----------
 
-function showSaved() {
+function setStatus(message, isError) {
   const status = document.getElementById('save-status');
-  status.textContent = 'Saved just now';
-  setTimeout(() => {
-    status.textContent = '';
-  }, 3000);
+  status.textContent = message;
+  status.classList.toggle('is-error', Boolean(isError));
 }
 
-document.getElementById('save-btn').addEventListener('click', () => {
-  const profile = serializeForm();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  showSaved();
+const saveBtn = document.getElementById('save-btn');
+
+saveBtn.addEventListener('click', async () => {
+  saveBtn.disabled = true;
+  setStatus('Saving...');
+  try {
+    await api.saveProfile(serializeForm());
+    setStatus('Saved');
+    setTimeout(() => setStatus(''), 3000);
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    saveBtn.disabled = false;
+  }
 });
 
-const saved = localStorage.getItem(STORAGE_KEY);
-if (saved) {
-  populateForm(JSON.parse(saved));
-} else {
-  // Start with one blank entry in each repeatable section so the form isn't empty/confusing
+function addBlankStarterEntries() {
   addEntry('education-list', 'education-template');
   addEntry('experience-list', 'experience-template');
   addEntry('projects-list', 'project-template');
   addEntry('languages-list', 'language-template');
 }
+
+(async () => {
+  try {
+    const profile = await api.getProfile();
+    const hasContent =
+      profile.personalInfo.fullName ||
+      profile.experience.length ||
+      profile.education.length ||
+      profile.projects.length;
+
+    if (hasContent) {
+      populateForm(profile);
+    } else {
+      // A brand-new profile: start with one blank entry per repeatable section
+      // so the form isn't an empty page of buttons.
+      populateForm(profile);
+      addBlankStarterEntries();
+    }
+  } catch (err) {
+    setStatus(err.message, true);
+    addBlankStarterEntries();
+  }
+})();

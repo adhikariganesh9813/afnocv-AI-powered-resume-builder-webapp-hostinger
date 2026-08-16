@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Profile — AfnoCV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/dashboard.html" class="brand">AfnoCV</a>
+    <nav class="topbar-nav">
+      <a href="/dashboard.html" class="nav-link">Dashboard</a>
+      <a href="/profile.html" class="nav-link is-active">My Profile</a>
+      <button type="button" id="signout-btn" class="nav-link nav-link-button">Sign Out</button>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+  <div class="page-heading">
+    <h1>My Profile</h1>
+    <p>This is the source material the AI uses. Write bullets in your own words — they get tailored per job at generation time.</p>
+  </div>
+
+  <form id="intake-form">
+
+    <section class="card">
+      <h2 class="card-title">Personal Info</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fullName">Full Name</label>
+          <input type="text" id="fullName" placeholder="Ganesh Adhikari" required />
+        </div>
+        <div class="form-field">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-field">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" placeholder="+1 (555) 123-4567" />
+        </div>
+        <div class="form-field">
+          <label for="location">Location</label>
+          <input type="text" id="location" placeholder="Lubbock, TX" />
+        </div>
+        <div class="form-field">
+          <label for="linkedin">LinkedIn URL</label>
+          <input type="text" id="linkedin" placeholder="linkedin.com/in/yourname" />
+        </div>
+        <div class="form-field">
+          <label for="github">GitHub URL</label>
+          <input type="text" id="github" placeholder="github.com/yourname" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Professional Summary</h2>
+      <div class="form-field">
+        <label for="summary">A short paragraph about your background (the AI will tailor this per job later)</label>
+        <textarea id="summary" rows="4" placeholder="M.S. Computer Science student with 2+ years of experience..."></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Technical Skills</h2>
+      <div class="form-field">
+        <label>Programming Languages</label>
+        <div class="tag-input" id="skills-programming">
+          <div class="tags"></div>
+          <input type="text" class="tag-entry" placeholder="Type a language, press Enter" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Frameworks / Tools</label>
+        <div class="tag-input" id="skills-frameworks">
+          <div class="tags"></div>
+          <input type="text" class="tag-entry" placeholder="Type a tool, press Enter" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Education</h2>
+        <button type="button" class="btn-add" data-add="education">+ Add Education</button>
+      </div>
+      <div id="education-list" class="entry-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Certifications</h2>
+        <button type="button" class="btn-add" data-add="certification">+ Add Certification</button>
+      </div>
+      <div id="certifications-list" class="entry-list"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Relevant Coursework</h2>
+      <div class="form-field">
+        <div class="tag-input" id="coursework">
+          <div class="tags"></div>
+          <input type="text" class="tag-entry" placeholder="Type a course, press Enter" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Professional Experience</h2>
+        <button type="button" class="btn-add" data-add="experience">+ Add Experience</button>
+      </div>
+      <div id="experience-list" class="entry-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Key Projects</h2>
+        <button type="button" class="btn-add" data-add="project">+ Add Project</button>
+      </div>
+      <div id="projects-list" class="entry-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-title">Languages</h2>
+        <button type="button" class="btn-add" data-add="language">+ Add Language</button>
+      </div>
+      <div id="languages-list" class="entry-list entry-list-inline"></div>
+    </section>
+
+  </form>
+</main>
+
+<div class="save-bar">
+  <span id="save-status" class="save-status"></span>
+  <button type="button" id="save-btn" class="btn-primary">Save Profile</button>
+</div>
+
+<!-- Templates for repeatable entries -->
+
+<template id="education-template">
+  <div class="entry-card" data-type="education">
+    <div class="entry-card-header">
+      <span class="entry-card-title">Education</span>
+      <button type="button" class="btn-remove" aria-label="Remove">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Institution</label>
+        <input type="text" data-field="institution" placeholder="Texas Tech University" />
+      </div>
+      <div class="form-field">
+        <label>Location</label>
+        <input type="text" data-field="location" placeholder="Lubbock, TX" />
+      </div>
+      <div class="form-field">
+        <label>Degree</label>
+        <input type="text" data-field="degree" placeholder="Master of Science in Computer Science" />
+      </div>
+      <div class="form-field">
+        <label>GPA (optional)</label>
+        <input type="text" data-field="gpa" placeholder="3.42" />
+      </div>
+      <div class="form-field">
+        <label>Start Date</label>
+        <input type="text" data-field="startDate" placeholder="August 2025" />
+      </div>
+      <div class="form-field">
+        <label>End Date</label>
+        <input type="text" data-field="endDate" placeholder="December 2026 (Expected)" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="certification-template">
+  <div class="entry-card" data-type="certification">
+    <div class="entry-card-header">
+      <span class="entry-card-title">Certification</span>
+      <button type="button" class="btn-remove" aria-label="Remove">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Name</label>
+        <input type="text" data-field="name" placeholder="IBM Data Engineering Professional Certificate" />
+      </div>
+      <div class="form-field">
+        <label>Issuer (optional)</label>
+        <input type="text" data-field="issuer" placeholder="Coursera" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="experience-template">
+  <div class="entry-card" data-type="experience">
+    <div class="entry-card-header">
+      <span class="entry-card-title">Experience</span>
+      <button type="button" class="btn-remove" aria-label="Remove">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Company</label>
+        <input type="text" data-field="company" placeholder="TECDIA Co. Ltd." />
+      </div>
+      <div class="form-field">
+        <label>Location</label>
+        <input type="text" data-field="location" placeholder="Tokyo, Japan" />
+      </div>
+      <div class="form-field">
+        <label>Title</label>
+        <input type="text" data-field="title" placeholder="Software Engineer" />
+      </div>
+      <div class="form-field">
+        <label>Start Date</label>
+        <input type="text" data-field="startDate" placeholder="September 2023" />
+      </div>
+      <div class="form-field">
+        <label>End Date</label>
+        <input type="text" data-field="endDate" placeholder="Present" />
+      </div>
+    </div>
+    <div class="bullets-section">
+      <label>Bullet Points</label>
+      <div class="bullets-list"></div>
+      <button type="button" class="btn-add-bullet">+ Add bullet</button>
+    </div>
+  </div>
+</template>
+
+<template id="project-template">
+  <div class="entry-card" data-type="project">
+    <div class="entry-card-header">
+      <span class="entry-card-title">Project</span>
+      <button type="button" class="btn-remove" aria-label="Remove">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Project Name</label>
+        <input type="text" data-field="name" placeholder="E-Learning Platform" />
+      </div>
+      <div class="form-field">
+        <label>Link (optional)</label>
+        <input type="text" data-field="link" placeholder="github.com/you/project" />
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Technologies</label>
+      <div class="tag-input" data-field="technologies">
+        <div class="tags"></div>
+        <input type="text" class="tag-entry" placeholder="Type a technology, press Enter" />
+      </div>
+    </div>
+    <div class="bullets-section">
+      <label>Description / Bullet Points</label>
+      <div class="bullets-list"></div>
+      <button type="button" class="btn-add-bullet">+ Add bullet</button>
+    </div>
+  </div>
+</template>
+
+<template id="language-template">
+  <div class="entry-card entry-card-inline" data-type="language">
+    <div class="form-grid form-grid-inline">
+      <div class="form-field">
+        <label>Language</label>
+        <input type="text" data-field="name" placeholder="Japanese" />
+      </div>
+      <div class="form-field">
+        <label>Proficiency</label>
+        <select data-field="proficiency">
+          <option value="">Select...</option>
+          <option>Native</option>
+          <option>Fluent</option>
+          <option>Advanced</option>
+          <option>Business</option>
+          <option>Intermediate</option>
+          <option>Basic</option>
+        </select>
+      </div>
+    </div>
+    <button type="button" class="btn-remove" aria-label="Remove">✕</button>
+  </div>
+</template>
+
+<template id="bullet-row-template">
+  <div class="bullet-row">
+    <textarea rows="2" placeholder="Describe an achievement..."></textarea>
+    <button type="button" class="btn-remove-bullet" aria-label="Remove bullet">✕</button>
+  </div>
+</template>
+
+<script src="/js/api.js"></script>
+<script src="/js/profile.js"></script>
+</body>
+</html>
