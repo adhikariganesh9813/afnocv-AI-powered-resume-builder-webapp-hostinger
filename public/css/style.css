@@ -19,6 +19,12 @@
   box-sizing: border-box;
 }
 
+/* The `hidden` attribute hides via display:none, which any author-level
+   display rule (e.g. .auth-form { display: flex }) would otherwise beat. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
