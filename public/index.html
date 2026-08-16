@@ -11,32 +11,82 @@
 </head>
 <body class="landing-body">
 
+<div class="landing-glow" aria-hidden="true"></div>
+
 <main class="landing">
+
   <section class="landing-pitch">
     <span class="brand-mark">AfnoCV</span>
-    <h1>Tailor your resume to every job in seconds.</h1>
-    <p>Fill in your background once. Paste any job description. Get an ATS-friendly resume rewritten to match — with a score showing how well it fits.</p>
+
+    <h1>Tailor your resume to<br />every job in seconds.</h1>
+
+    <p class="landing-lede">
+      Fill in your background once. Paste any job description. Get an
+      ATS-friendly resume rewritten to match — with a score showing how well it fits.
+    </p>
+
     <ul class="landing-points">
-      <li>Rewritten bullet points aligned to the job description</li>
-      <li>Skills reordered and emphasized for keyword matching</li>
-      <li>Download as PDF or DOCX</li>
+      <li>
+        <span class="point-icon">✓</span>
+        <span>
+          <strong>Rewritten bullet points</strong>
+          Reworded to mirror the language of the posting.
+        </span>
+      </li>
+      <li>
+        <span class="point-icon">✓</span>
+        <span>
+          <strong>Smart keyword alignment</strong>
+          Skills reordered and emphasized to clear ATS filters.
+        </span>
+      </li>
+      <li>
+        <span class="point-icon">✓</span>
+        <span>
+          <strong>Export anywhere</strong>
+          Download a clean PDF or DOCX, ready to send.
+        </span>
+      </li>
     </ul>
+
+    <div class="score-preview" aria-hidden="true">
+      <div class="score-ring">
+        <svg viewBox="0 0 44 44">
+          <circle class="score-ring-track" cx="22" cy="22" r="19" />
+          <circle class="score-ring-value" cx="22" cy="22" r="19" />
+        </svg>
+        <span class="score-ring-label">92<i>%</i></span>
+      </div>
+      <div class="score-preview-text">
+        <strong>Match score</strong>
+        See exactly how closely your resume fits before you apply.
+      </div>
+    </div>
   </section>
 
   <section class="auth-panel">
-    <div class="auth-tabs">
-      <button type="button" class="auth-tab is-active" data-tab="login">Sign In</button>
-      <button type="button" class="auth-tab" data-tab="signup">Create Account</button>
+    <header class="auth-header">
+      <h2 id="auth-title">Welcome back</h2>
+      <p id="auth-subtitle">Sign in to keep building your resume.</p>
+    </header>
+
+    <div class="auth-tabs" role="tablist">
+      <span class="auth-tabs-indicator" aria-hidden="true"></span>
+      <button type="button" class="auth-tab is-active" data-tab="login" role="tab" aria-selected="true">Sign In</button>
+      <button type="button" class="auth-tab" data-tab="signup" role="tab" aria-selected="false">Create Account</button>
     </div>
 
     <form id="login-form" class="auth-form">
       <div class="form-field">
         <label for="login-email">Email</label>
-        <input type="email" id="login-email" autocomplete="email" required />
+        <input type="email" id="login-email" autocomplete="email" placeholder="you@example.com" required />
       </div>
       <div class="form-field">
         <label for="login-password">Password</label>
-        <input type="password" id="login-password" autocomplete="current-password" required />
+        <div class="password-wrap">
+          <input type="password" id="login-password" autocomplete="current-password" placeholder="Your password" required />
+          <button type="button" class="password-toggle" data-toggle="login-password" aria-label="Show password">Show</button>
+        </div>
       </div>
       <p class="auth-error" id="login-error" hidden></p>
       <button type="submit" class="btn-primary btn-block">Sign In</button>
@@ -45,17 +95,25 @@
     <form id="signup-form" class="auth-form" hidden>
       <div class="form-field">
         <label for="signup-email">Email</label>
-        <input type="email" id="signup-email" autocomplete="email" required />
+        <input type="email" id="signup-email" autocomplete="email" placeholder="you@example.com" required />
       </div>
       <div class="form-field">
         <label for="signup-password">Password</label>
-        <input type="password" id="signup-password" autocomplete="new-password" required />
-        <span class="field-hint">At least 8 characters.</span>
+        <div class="password-wrap">
+          <input type="password" id="signup-password" autocomplete="new-password" placeholder="At least 8 characters" required minlength="8" />
+          <button type="button" class="password-toggle" data-toggle="signup-password" aria-label="Show password">Show</button>
+        </div>
+        <div class="strength" id="signup-strength" hidden>
+          <div class="strength-bar"><span></span></div>
+          <span class="strength-label"></span>
+        </div>
       </div>
       <p class="auth-error" id="signup-error" hidden></p>
       <button type="submit" class="btn-primary btn-block">Create Account</button>
+      <p class="auth-fineprint">No credit card required. Your details stay private.</p>
     </form>
   </section>
+
 </main>
 
 <script src="/js/api.js"></script>
