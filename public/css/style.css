@@ -586,6 +586,7 @@ label {
 
 input[type="text"],
 input[type="email"],
+input[type="password"],
 textarea,
 select {
   font-family: inherit;
@@ -864,10 +865,17 @@ textarea {
   color: var(--color-text-muted);
 }
 
+/* Two columns so the four options form a balanced 2x2 rather than 3 + 1. */
 .resume-types {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
+}
+
+@media (max-width: 620px) {
+  .resume-types {
+    grid-template-columns: 1fr;
+  }
 }
 
 .resume-type {
