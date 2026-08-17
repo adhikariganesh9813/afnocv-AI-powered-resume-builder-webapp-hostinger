@@ -10,21 +10,36 @@ function signToken(user) {
   });
 }
 
+function emailTakenError() {
+  const err = new Error('An account with that email already exists.');
+  err.status = 409;
+  return err;
+}
+
 async function signup(email, password) {
+  // Stored lowercase and trimmed so " Test@X.com " can't become a second
+  // account alongside "test@x.com".
   const normalizedEmail = String(email).trim().toLowerCase();
 
   const existing = await query('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
-  if (existing.length > 0) {
-    const err = new Error('An account with that email already exists.');
-    err.status = 409;
-    throw err;
-  }
+  if (existing.length > 0) throw emailTakenError();
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const result = await query('INSERT INTO users (email, password_hash) VALUES (?, ?)', [
-    normalizedEmail,
-    passwordHash,
-  ]);
+
+  let result;
+  try {
+    result = await query('INSERT INTO users (email, password_hash) VALUES (?, ?)', [
+      normalizedEmail,
+      passwordHash,
+    ]);
+  } catch (err) {
+    // Two simultaneous signups can both clear the check above before either
+    // inserts. The UNIQUE index on users.email is what actually prevents the
+    // duplicate; catching its error here just turns a confusing 500 into the
+    // same "email already taken" message the user would otherwise have seen.
+    if (err.code === 'ER_DUP_ENTRY') throw emailTakenError();
+    throw err;
+  }
 
   const user = { id: result.insertId, email: normalizedEmail };
 
