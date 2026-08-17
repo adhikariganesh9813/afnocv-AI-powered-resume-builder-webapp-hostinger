@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.post('/', generationController.generate);
 router.get('/', generationController.list);
 router.get('/:id', generationController.getOne);
-router.get('/:id/download/docx', generationController.downloadDocx);
-router.get('/:id/download/pdf', generationController.downloadPdf);
+// doc: resume | cover, format: pdf | docx
+router.get('/:id/download/:doc/:format', generationController.download);
 
 module.exports = router;

@@ -1,7 +1,8 @@
 const { query } = require('../config/db');
 const profileService = require('./profile.service');
 const deepseek = require('./deepseek.service');
-const { SYSTEM_PROMPT, buildUserPrompt } = require('../prompts/resume.prompt');
+const resumePrompt = require('../prompts/resume.prompt');
+const coverLetterPrompt = require('../prompts/coverLetter.prompt');
 
 const RESUME_TYPES = ['natural', 'basic_match', 'max_match', 'ultra_match'];
 const SKILL_CATEGORIES = ['Programming Languages', 'Frameworks/Tools'];
@@ -86,6 +87,32 @@ function normalizeAiOutput(ai, profile) {
   };
 }
 
+// The letter is mostly free text, so there is less to enforce structurally than
+// with the resume — but the shape still has to be right before it reaches a
+// template, and the model must not invent a company or role the posting never named.
+function normalizeCoverLetter(ai, profile) {
+  const paragraphs = toStringArray(ai && ai.paragraphs).map((p) => p.trim());
+
+  if (!paragraphs.length) {
+    const err = new Error('The AI returned an empty cover letter. Please try again.');
+    err.status = 502;
+    err.expose = true;
+    throw err;
+  }
+
+  const text = (value, fallback = '') =>
+    typeof value === 'string' && value.trim() ? value.trim() : fallback;
+
+  return {
+    fullName: profile.personalInfo.fullName,
+    companyName: text(ai.companyName),
+    roleTitle: text(ai.roleTitle),
+    greeting: text(ai.greeting, 'Dear Hiring Manager,'),
+    paragraphs,
+    closing: text(ai.closing, 'Sincerely,'),
+  };
+}
+
 async function generate(userId, { jobDescription, resumeType }) {
   const jd = typeof jobDescription === 'string' ? jobDescription.trim() : '';
 
@@ -102,29 +129,45 @@ async function generate(userId, { jobDescription, resumeType }) {
     badRequest('Add at least one experience or project on the profile page first.');
   }
 
-  const { json, usage } = await deepseek.chatJson({
-    system: SYSTEM_PROMPT,
-    user: buildUserPrompt({ profile, jobDescription: jd, resumeType }),
-    // Low but non-zero: tailoring needs some flexibility of phrasing, while
-    // staying well away from the creativity that invites invented facts.
-    temperature: 0.3,
-  });
+  // Two focused calls rather than one large one: each response stays well within
+  // output limits and neither document's schema can confuse the other. Run in
+  // parallel so the user waits for the slower of the two, not their sum.
+  const [resumeResponse, letterResponse] = await Promise.all([
+    deepseek.chatJson({
+      system: resumePrompt.SYSTEM_PROMPT,
+      user: resumePrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType }),
+      // Low but non-zero: tailoring needs some flexibility of phrasing, while
+      // staying well away from the creativity that invites invented facts.
+      temperature: 0.3,
+    }),
+    deepseek.chatJson({
+      system: coverLetterPrompt.SYSTEM_PROMPT,
+      user: coverLetterPrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType }),
+      // Slightly higher than the resume: prose reads badly when it is too rigid,
+      // and the factual claims here are constrained by the prompt rather than by
+      // structure, so the extra latitude affects wording rather than content.
+      temperature: 0.5,
+    }),
+  ]);
 
-  const resume = normalizeAiOutput(json, profile);
+  const resume = normalizeAiOutput(resumeResponse.json, profile);
+  const coverLetter = normalizeCoverLetter(letterResponse.json, profile);
 
+  // Both documents live in generated_json: they are produced together, replaced
+  // wholesale on each run, and never queried field by field — the same reasoning
+  // that kept the resume out of normalised tables. No schema change needed.
   const result = await query(
     `INSERT INTO generations (user_id, profile_id, resume_type, generated_json)
      VALUES (?, (SELECT id FROM profiles WHERE user_id = ?), ?, ?)`,
-    [userId, userId, resumeType, JSON.stringify(resume)]
+    [userId, userId, resumeType, JSON.stringify({ ...resume, coverLetter })]
   );
 
-  if (usage) {
-    console.log(
-      `Generation ${result.insertId}: ${usage.prompt_tokens} prompt + ${usage.completion_tokens} completion tokens`
-    );
-  }
+  const tokens = [resumeResponse.usage, letterResponse.usage]
+    .filter(Boolean)
+    .reduce((sum, u) => sum + (u.prompt_tokens || 0) + (u.completion_tokens || 0), 0);
+  if (tokens) console.log(`Generation ${result.insertId}: ${tokens} tokens total`);
 
-  return { id: result.insertId, resumeType, resume };
+  return { id: result.insertId, resumeType, resume, coverLetter };
 }
 
 async function getGeneration(userId, generationId) {
@@ -140,11 +183,20 @@ async function getGeneration(userId, generationId) {
   }
 
   const row = rows[0];
+  // mysql2 returns JSON columns already parsed; older setups hand back a string.
+  const stored =
+    typeof row.generated_json === 'string' ? JSON.parse(row.generated_json) : row.generated_json;
+
+  // The cover letter is stored alongside the resume fields; split them back out
+  // so callers get the same shape `generate()` returns. Generations created
+  // before cover letters existed simply have none.
+  const { coverLetter = null, ...resume } = stored;
+
   return {
     id: row.id,
     resumeType: row.resume_type,
-    // mysql2 returns JSON columns already parsed; older setups hand back a string.
-    resume: typeof row.generated_json === 'string' ? JSON.parse(row.generated_json) : row.generated_json,
+    resume,
+    coverLetter,
     matchScore: row.match_score,
     createdAt: row.created_at,
   };

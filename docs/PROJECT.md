@@ -171,19 +171,23 @@ Layered structure: `server.js` → `src/app.js` → `src/routes/` → `src/contr
 | GET | `/api/auth/me` | ✓ | Current user |
 | GET | `/api/profile` | ✓ | Full `ResumeProfile` for the signed-in user |
 | PUT | `/api/profile` | ✓ | Replace the signed-in user's whole profile |
-| POST | `/api/generate` | ✓ | Generate a tailored resume (body: `jobDescription`, `resumeType`) |
+| POST | `/api/generate` | ✓ | Generate a tailored resume **and cover letter** (body: `jobDescription`, `resumeType`) |
 | GET | `/api/generate` | ✓ | List the user's recent generations |
-| GET | `/api/generate/:id` | ✓ | One generation + its rendered HTML |
-| GET | `/api/generate/:id/download/pdf` | ✓ | Download as PDF |
-| GET | `/api/generate/:id/download/docx` | ✓ | Download as DOCX |
+| GET | `/api/generate/:id` | ✓ | One generation + both rendered documents |
+| GET | `/api/generate/:id/download/:doc/:format` | ✓ | `doc` = `resume`\|`cover`, `format` = `pdf`\|`docx` |
 
 ### AI generation (Feature 3) — how it works
 
 | File | Role |
 |---|---|
-| `src/prompts/resume.prompt.js` | All prompt text: the system prompt (absolute rules, writing style, output schema) and the four `resume_type` rule blocks. Kept separate from logic so wording can be tuned without touching code. |
+| `src/prompts/resume.prompt.js` | All resume prompt text: the system prompt (absolute rules, writing style, output schema) and the four `resume_type` rule blocks. Kept separate from logic so wording can be tuned without touching code. |
+| `src/prompts/coverLetter.prompt.js` | Cover letter prompt: same absolute anti-fabrication rules, plus writing constraints (four paragraphs, no clichés, one page) and four tone levels mapped to the same `resume_type` setting. |
 | `src/services/deepseek.service.js` | Thin client for DeepSeek's OpenAI-compatible `/chat/completions`, using JSON mode (`response_format: {type: 'json_object'}`). Uses Node 20's built-in `fetch`; 120s timeout; maps provider failures to clear messages. |
 | `src/services/generation.service.js` | Validates input, loads the profile, calls the model, **normalises and sanitises the response**, saves to `generations`. |
+
+**Two documents per run.** One "Generate" produces a tailored resume *and* a cover letter, via **two parallel API calls** (`Promise.all`) rather than one combined call: each response stays well within output limits, neither schema can confuse the other, and the user waits for the slower call rather than the sum. Both are stored together in `generations.generated_json` — no schema change was needed, since they are produced together, replaced wholesale, and never queried field by field. Generations created before this feature simply have no `coverLetter` key; `getGeneration` returns `null` for it and the UI offers to regenerate.
+
+Cover letter temperature is 0.5 versus the resume's 0.3 — prose reads badly when it is too rigid, and the letter's factual claims are constrained by the prompt rather than by structure, so the extra latitude affects wording rather than content. Its date, sender details, and signature are added by the template, never by the model.
 
 **Anti-hallucination design (two layers).** This is the core risk: a prompt that asks a model to make someone look good for a job invites it to invent skills.
 
@@ -202,8 +206,11 @@ Verified with a stubbed model response that deliberately tried to inject a fake 
 | File | Role |
 |---|---|
 | `src/services/resumeRender.service.js` | Generated resume JSON → ATS-friendly HTML (also exports `renderResumeText`, which Feature 6 will need). |
-| `src/services/pdf.service.js` | PDF via **PDFKit** — pure JavaScript, so it runs on Hostinger shared hosting where a headless browser would not. Produces real selectable text, verified extractable (essential for ATS parsing). |
-| `src/services/docx.service.js` | DOCX via the **docx** package. Single column with right-aligned tab stops rather than tables, since ATS parsers mishandle tables. |
+| `src/services/coverLetterRender.service.js` | Cover letter JSON → HTML, and owns the letter's factual furniture (date formatting, `Re:` recipient lines) so those are template-generated rather than model-generated. |
+| `src/services/pdf.service.js` | PDF via **PDFKit** — pure JavaScript, so it runs on Hostinger shared hosting where a headless browser would not. Produces real selectable text, verified extractable (essential for ATS parsing). Exports `buildPdf` and `buildCoverLetterPdf`. |
+| `src/services/docx.service.js` | DOCX via the **docx** package. Single column with right-aligned tab stops rather than tables, since ATS parsers mishandle tables. Exports `buildDocx` and `buildCoverLetterDocx`. |
+
+All four downloads (resume/cover × PDF/DOCX) go through one `download` controller keyed on `:doc/:format`.
 
 Verified working: input validation (400s), auth guard (401 for missing/invalid/expired tokens), and graceful 500s when the database is unreachable. **The DB-backed paths have not been tested against a real database yet** — `.env` still holds dummy credentials, so every DB call currently fails with a handled 500. That's the expected state until real Hostinger credentials are filled in.
 
@@ -213,7 +220,7 @@ Verified working: input validation (400s), auth guard (401 for missing/invalid/e
 |---|---|
 | `public/index.html` + `js/auth.js` | Homepage — marketing pitch + sign-in/create-account tabs. Redirects to the dashboard if already signed in. |
 | `public/dashboard.html` + `js/dashboard.js` | Dashboard — job-description textarea + resume-type picker (Natural / Basic Match / Max Match / Ultra Match). Warns if the profile is empty. Generate calls `/api/generate` and redirects to the result page. |
-| `public/result.html` + `js/result.js` | Result page — renders the tailored resume, shows which job-description keywords were matched vs. unsupported, and offers PDF/DOCX download (fetched as a blob so the auth header can be sent). Has a print stylesheet that strips the app chrome. |
+| `public/result.html` + `js/result.js` | Result page — resume and cover letter **side by side**, each with its own PDF/DOCX buttons (fetched as blobs so the auth header can be sent). Shows which job-description keywords were matched vs. unsupported. Stacks to one column under 1000px. Print stylesheet strips the app chrome and puts each document on its own page. |
 | `public/profile.html` + `js/profile.js` | Profile page — the full intake form (was `index.html` before auth existed). Now loads from and saves to `/api/profile` instead of `localStorage`. |
 | `public/js/api.js` | Shared helper — JWT storage, `fetch` wrapper, auto-redirect to homepage on 401, and the `api.*` methods each page calls. |
 | `public/css/style.css` | All styling — cards, forms, tag chips, nav, landing page, resume-type picker. |
@@ -252,3 +259,8 @@ Verified working: input validation (400s), auth guard (401 for missing/invalid/e
   - **PDFKit over a headless browser** for PDF: pure JS, runs on Hostinger shared hosting, and produces real extractable text rather than an image (verified by parsing the generated PDF back out).
   - **DOCX uses tab stops, not tables**, for right-aligned dates/locations — ATS parsers mishandle table layouts.
   - Error handler gained an `expose` flag: 5xx errors are normally masked behind a generic message, but deliberately-written provider messages ("Add a real DEEPSEEK_API_KEY", "insufficient balance") pass through, since they are actionable and leak nothing.
+- **2026-08-17** — Added cover letter generation (owner's request; not part of the original six-feature brief). One "Generate" now produces both documents, shown side by side on the result page, each downloadable as PDF or DOCX. Key decisions:
+  - **Two parallel model calls instead of one combined call** — keeps each response inside output limits, stops the two schemas interfering, and costs no extra wall-clock time.
+  - **Stored inside the existing `generated_json` column**, not a new column or table — same reasoning as the resume (produced together, replaced wholesale, never queried by sub-field), and it avoids asking the owner to run a migration against a live database.
+  - **Old generations remain readable**: `getGeneration` returns `coverLetter: null` when the key is absent, and the UI invites the user to regenerate. Verified against a real pre-existing generation in the production database.
+  - The letter's date, contact block and signature are produced by the template, not the model, so they cannot be invented or misformatted.

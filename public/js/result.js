@@ -9,19 +9,22 @@ const RESUME_TYPE_LABELS = {
   ultra_match: 'Ultra Match',
 };
 
-const params = new URLSearchParams(window.location.search);
-const generationId = params.get('id');
+const generationId = new URLSearchParams(window.location.search).get('id');
 
-const sheet = document.getElementById('resume-sheet');
+const resumeSheet = document.getElementById('resume-sheet');
+const coverSheet = document.getElementById('cover-sheet');
 const meta = document.getElementById('result-meta');
 const errorBox = document.getElementById('result-error');
-const docxBtn = document.getElementById('download-docx');
-const pdfBtn = document.getElementById('download-pdf');
 
 function showError(message) {
   errorBox.textContent = message;
   errorBox.hidden = false;
-  document.getElementById('resume-loading')?.remove();
+}
+
+function escapeHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = value;
+  return div.innerHTML;
 }
 
 function renderKeywords(resume) {
@@ -45,21 +48,15 @@ function renderKeywords(resume) {
   }
 }
 
-function escapeHtml(value) {
-  const div = document.createElement('div');
-  div.textContent = value;
-  return div.innerHTML;
-}
-
 // Downloads need the auth header, so they're fetched as a blob rather than
 // opened as a plain link.
-async function download(kind, button) {
+async function download(path, button) {
   const originalText = button.textContent;
   button.disabled = true;
-  button.textContent = 'Preparing...';
+  button.textContent = '...';
 
   try {
-    const response = await fetch(`/api/generate/${generationId}/download/${kind}`, {
+    const response = await fetch(`/api/generate/${generationId}/download/${path}`, {
       headers: { Authorization: `Bearer ${Auth.getToken()}` },
     });
 
@@ -70,7 +67,7 @@ async function download(kind, button) {
 
     const disposition = response.headers.get('Content-Disposition') || '';
     const match = disposition.match(/filename="([^"]+)"/);
-    const filename = match ? match[1] : `resume.${kind}`;
+    const filename = match ? match[1] : `document.${path.split('/')[1]}`;
 
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -89,27 +86,46 @@ async function download(kind, button) {
   }
 }
 
-docxBtn.addEventListener('click', () => download('docx', docxBtn));
-pdfBtn.addEventListener('click', () => download('pdf', pdfBtn));
+const downloadButtons = document.querySelectorAll('[data-download]');
+downloadButtons.forEach((btn) => {
+  btn.addEventListener('click', () => download(btn.dataset.download, btn));
+});
 
 (async () => {
   if (!generationId) {
-    showError('No resume selected. Generate one from the dashboard.');
+    showError('No application selected. Generate one from the dashboard.');
+    resumeSheet.innerHTML = '';
+    coverSheet.innerHTML = '';
     return;
   }
 
   try {
     const data = await api.getGeneration(generationId);
-    sheet.innerHTML = data.html;
+
+    resumeSheet.innerHTML = data.html;
+
+    if (data.coverLetterHtml) {
+      coverSheet.innerHTML = data.coverLetterHtml;
+    } else {
+      // Generations created before cover letters existed have none.
+      coverSheet.innerHTML =
+        '<div class="doc-loading">No cover letter for this application. Generate a new one to get both documents.</div>';
+      document.querySelectorAll('[data-download^="cover"]').forEach((b) => (b.hidden = true));
+    }
 
     const created = new Date(data.createdAt);
     meta.textContent = `${RESUME_TYPE_LABELS[data.resumeType] || data.resumeType} · generated ${created.toLocaleString()}`;
 
     renderKeywords(data.resume);
-    docxBtn.disabled = false;
-    pdfBtn.disabled = false;
+
+    downloadButtons.forEach((btn) => {
+      if (btn.dataset.download.startsWith('cover') && !data.coverLetterHtml) return;
+      btn.disabled = false;
+    });
   } catch (err) {
     showError(err.message);
     meta.textContent = '';
+    resumeSheet.innerHTML = '';
+    coverSheet.innerHTML = '';
   }
 })();

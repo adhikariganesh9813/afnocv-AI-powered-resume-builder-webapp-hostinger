@@ -1,20 +1,36 @@
 const generationService = require('../services/generation.service');
-const { buildDocx } = require('../services/docx.service');
-const { buildPdf } = require('../services/pdf.service');
+const { buildDocx, buildCoverLetterDocx } = require('../services/docx.service');
+const { buildPdf, buildCoverLetterPdf } = require('../services/pdf.service');
 const { renderResumeHtml } = require('../services/resumeRender.service');
+const { renderCoverLetterHtml } = require('../services/coverLetterRender.service');
 
 // "Ganesh Adhikari" -> "Ganesh_Adhikari_Resume"
-function fileBaseName(resume) {
+function fileBaseName(resume, suffix) {
   const name = (resume.personalInfo && resume.personalInfo.fullName) || 'resume';
   const safe = name.trim().replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
-  return `${safe || 'resume'}_Resume`;
+  return `${safe || 'resume'}_${suffix}`;
+}
+
+// Both documents rendered together so every response has the same shape.
+function withHtml(generation) {
+  return {
+    ...generation,
+    html: renderResumeHtml(generation.resume),
+    coverLetterHtml: generation.coverLetter
+      ? renderCoverLetterHtml(
+          generation.coverLetter,
+          generation.resume.personalInfo,
+          generation.createdAt || new Date()
+        )
+      : null,
+  };
 }
 
 async function generate(req, res, next) {
   try {
     const { jobDescription, resumeType } = req.body;
     const result = await generationService.generate(req.user.userId, { jobDescription, resumeType });
-    res.status(201).json({ ...result, html: renderResumeHtml(result.resume) });
+    res.status(201).json(withHtml(result));
   } catch (err) {
     next(err);
   }
@@ -23,7 +39,7 @@ async function generate(req, res, next) {
 async function getOne(req, res, next) {
   try {
     const generation = await generationService.getGeneration(req.user.userId, req.params.id);
-    res.json({ ...generation, html: renderResumeHtml(generation.resume) });
+    res.json(withHtml(generation));
   } catch (err) {
     next(err);
   }
@@ -37,31 +53,46 @@ async function list(req, res, next) {
   }
 }
 
-async function downloadDocx(req, res, next) {
+const MIME = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+
+// One handler for all four combinations of document and format.
+async function download(req, res, next) {
   try {
-    const { resume } = await generationService.getGeneration(req.user.userId, req.params.id);
-    const buffer = await buildDocx(resume);
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    );
-    res.setHeader('Content-Disposition', `attachment; filename="${fileBaseName(resume)}.docx"`);
+    const { doc, format } = req.params;
+
+    if (!['resume', 'cover'].includes(doc) || !['pdf', 'docx'].includes(format)) {
+      const err = new Error('Unknown download type.');
+      err.status = 404;
+      throw err;
+    }
+
+    const generation = await generationService.getGeneration(req.user.userId, req.params.id);
+    const { resume, coverLetter, createdAt } = generation;
+
+    if (doc === 'cover' && !coverLetter) {
+      const err = new Error('This resume was generated before cover letters were added. Generate a new one.');
+      err.status = 404;
+      throw err;
+    }
+
+    let buffer;
+    if (doc === 'resume') {
+      buffer = format === 'pdf' ? await buildPdf(resume) : await buildDocx(resume);
+    } else {
+      const args = [coverLetter, resume.personalInfo, createdAt || new Date()];
+      buffer = format === 'pdf' ? await buildCoverLetterPdf(...args) : await buildCoverLetterDocx(...args);
+    }
+
+    const filename = `${fileBaseName(resume, doc === 'resume' ? 'Resume' : 'Cover_Letter')}.${format}`;
+    res.setHeader('Content-Type', MIME[format]);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (err) {
     next(err);
   }
 }
 
-async function downloadPdf(req, res, next) {
-  try {
-    const { resume } = await generationService.getGeneration(req.user.userId, req.params.id);
-    const buffer = await buildPdf(resume);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileBaseName(resume)}.pdf"`);
-    res.send(buffer);
-  } catch (err) {
-    next(err);
-  }
-}
-
-module.exports = { generate, getOne, list, downloadDocx, downloadPdf };
+module.exports = { generate, getOne, list, download };

@@ -7,6 +7,7 @@ const {
   BorderStyle,
   TabStopType,
 } = require('docx');
+const { formatDate, recipientLines } = require('./coverLetterRender.service');
 
 // Matches the ATS template: single column, no tables, no text boxes.
 // Right-aligned dates/locations use tab stops rather than a table so parsers
@@ -171,4 +172,64 @@ async function buildDocx(resume) {
   return Packer.toBuffer(doc);
 }
 
-module.exports = { buildDocx };
+async function buildCoverLetterDocx(letter, personalInfo = {}, createdAt = new Date()) {
+  const name = letter.fullName || personalInfo.fullName || '';
+  const children = [];
+
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 40 },
+      children: [textRun(name, { bold: true, size: 30 })],
+    })
+  );
+
+  const contact = [personalInfo.email, personalInfo.phone, personalInfo.location]
+    .filter(Boolean)
+    .join(' | ');
+  if (contact) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 360 },
+        children: [textRun(contact)],
+      })
+    );
+  }
+
+  children.push(new Paragraph({ spacing: { after: 240 }, children: [textRun(formatDate(createdAt))] }));
+
+  recipientLines(letter).forEach((line) =>
+    children.push(new Paragraph({ spacing: { after: 40 }, children: [textRun(line)] }))
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { before: 200, after: 200 },
+      children: [textRun(letter.greeting || 'Dear Hiring Manager,')],
+    })
+  );
+
+  (letter.paragraphs || []).forEach((paragraph) =>
+    children.push(new Paragraph({ spacing: { after: 200 }, children: [textRun(paragraph)] }))
+  );
+
+  children.push(
+    new Paragraph({ spacing: { before: 200, after: 320 }, children: [textRun(letter.closing || 'Sincerely,')] })
+  );
+  children.push(new Paragraph({ children: [textRun(name)] }));
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: FONT, size: 22 } } } },
+    sections: [
+      {
+        properties: { page: { margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 } } },
+        children,
+      },
+    ],
+  });
+
+  return Packer.toBuffer(doc);
+}
+
+module.exports = { buildDocx, buildCoverLetterDocx };

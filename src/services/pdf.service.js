@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const { formatDate, recipientLines } = require('./coverLetterRender.service');
 
 // Builds the ATS template as a real text-based PDF (selectable/parseable text,
 // not an image). PDFKit is pure JavaScript, so this works on shared hosting
@@ -191,4 +192,55 @@ function buildPdf(resume) {
   });
 }
 
-module.exports = { buildPdf };
+function buildCoverLetterPdf(letter, personalInfo = {}, createdAt = new Date()) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'LETTER', margin: 54 });
+    const chunks = [];
+
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    const width = doc.page.width - 108;
+    const name = letter.fullName || personalInfo.fullName || '';
+
+    doc.font(FONT_BOLD).fontSize(15).fillColor('#000');
+    doc.text(name, 54, 54, { width, align: 'center' });
+
+    const contact = [personalInfo.email, personalInfo.phone, personalInfo.location]
+      .filter(Boolean)
+      .join('  |  ');
+    if (contact) {
+      doc.font(FONT).fontSize(9);
+      doc.text(contact, 54, doc.y + 2, { width, align: 'center' });
+    }
+
+    doc.moveDown(2);
+    doc.font(FONT).fontSize(10);
+    doc.text(formatDate(createdAt), 54, doc.y, { width });
+
+    const recipient = recipientLines(letter);
+    if (recipient.length) {
+      doc.moveDown(1);
+      recipient.forEach((line) => doc.text(line, 54, doc.y, { width }));
+    }
+
+    doc.moveDown(1.2);
+    doc.text(letter.greeting || 'Dear Hiring Manager,', 54, doc.y, { width });
+    doc.moveDown(0.8);
+
+    (letter.paragraphs || []).forEach((paragraph) => {
+      doc.text(paragraph, 54, doc.y, { width, align: 'left', lineGap: 2 });
+      doc.moveDown(0.8);
+    });
+
+    doc.moveDown(0.5);
+    doc.text(letter.closing || 'Sincerely,', 54, doc.y, { width });
+    doc.moveDown(1.5);
+    doc.text(name, 54, doc.y, { width });
+
+    doc.end();
+  });
+}
+
+module.exports = { buildPdf, buildCoverLetterPdf };

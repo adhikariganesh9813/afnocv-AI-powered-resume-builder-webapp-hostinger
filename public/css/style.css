@@ -941,12 +941,13 @@ textarea {
   color: var(--color-danger);
 }
 
+
 /* ==========================================================
-   Result page
+   Result page — resume and cover letter side by side
    ========================================================== */
 
-.page-wide {
-  max-width: 940px;
+.page-widest {
+  max-width: 1320px;
 }
 
 .result-head {
@@ -970,13 +971,6 @@ textarea {
   color: var(--color-text-muted);
 }
 
-.result-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .btn-secondary {
   display: inline-block;
   background: var(--color-card);
@@ -991,14 +985,9 @@ textarea {
   text-decoration: none;
 }
 
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
-}
-
-.btn-secondary:disabled {
-  opacity: 0.55;
-  cursor: default;
 }
 
 .banner-error {
@@ -1056,55 +1045,127 @@ textarea {
   line-height: 1.5;
 }
 
-/* ==========================================================
-   Rendered resume (ATS layout)
-   ========================================================== */
+/* Two document columns */
 
-.resume-sheet {
+.doc-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.doc-column {
+  min-width: 0;
+}
+
+.doc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 10px;
+}
+
+.doc-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.doc-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-mini {
+  background: var(--color-card);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-mini:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-mini-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.btn-mini-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: #fff;
+}
+
+.btn-mini:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.doc-sheet {
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 48px 52px;
+  padding: 36px 38px;
+  min-height: 320px;
 }
 
-.resume-loading {
+.doc-loading {
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   text-align: center;
-  padding: var(--space-4) 0;
+  padding: var(--space-4) var(--space-2);
+  line-height: 1.55;
 }
 
-.resume {
+/* ==========================================================
+   Rendered resume (ATS layout)
+   ========================================================== */
+
+.resume,
+.cover-letter {
   font-family: 'Calibri', 'Inter', sans-serif;
   color: #000;
-  font-size: 13.5px;
+  font-size: 12.5px;
   line-height: 1.45;
 }
 
 .r-header {
   text-align: center;
-  margin-bottom: 14px;
+  margin-bottom: 13px;
 }
 
 .r-name {
-  font-size: 25px;
+  font-size: 22px;
   font-weight: 700;
   margin: 0 0 4px;
   letter-spacing: -0.01em;
 }
 
 .r-contact {
-  font-size: 12.5px;
+  font-size: 11.5px;
   line-height: 1.5;
 }
 
 .r-section {
-  margin-top: 14px;
+  margin-top: 13px;
 }
 
 .r-section-title {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -1120,7 +1181,7 @@ textarea {
 
 .r-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 17px;
 }
 
 .r-list li {
@@ -1138,7 +1199,7 @@ textarea {
 .r-entry-row {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
 }
 
 .r-right {
@@ -1155,21 +1216,78 @@ textarea {
 }
 
 .r-link {
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 .r-bullets {
   margin: 3px 0 0;
-  padding-left: 18px;
+  padding-left: 17px;
 }
 
 .r-bullets li {
   margin-bottom: 3px;
 }
 
+/* ==========================================================
+   Rendered cover letter
+   ========================================================== */
+
+.cl-header {
+  text-align: center;
+  padding-bottom: 12px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid #d7dce5;
+}
+
+.cl-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 3px;
+  letter-spacing: -0.01em;
+}
+
+.cl-contact {
+  font-size: 11.5px;
+  color: #333;
+}
+
+.cl-date {
+  margin-bottom: 18px;
+}
+
+.cl-recipient {
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.cl-greeting {
+  margin-bottom: 14px;
+}
+
+.cl-paragraph {
+  margin: 0 0 13px;
+  text-align: justify;
+}
+
+.cl-closing {
+  margin-top: 22px;
+}
+
+.cl-signature {
+  margin-top: 26px;
+  font-weight: 600;
+}
+
+@media (max-width: 1000px) {
+  .doc-columns {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
 @media (max-width: 700px) {
-  .resume-sheet {
-    padding: 24px 20px;
+  .doc-sheet {
+    padding: 22px 18px;
   }
 
   .r-entry-row {
@@ -1182,7 +1300,7 @@ textarea {
   }
 }
 
-/* Printing the page produces a clean resume with no app chrome around it. */
+/* Printing produces the documents alone, one per page, with no app chrome. */
 @media print {
   .no-print,
   .topbar,
@@ -1195,15 +1313,22 @@ textarea {
   }
 
   .page,
-  .page-wide {
+  .page-wide,
+  .page-widest {
     max-width: none;
     padding: 0;
   }
 
-  .resume-sheet {
+  .doc-columns {
+    display: block;
+  }
+
+  .doc-sheet {
     border: none;
     box-shadow: none;
     padding: 0;
     border-radius: 0;
+    min-height: 0;
+    page-break-after: always;
   }
 }
