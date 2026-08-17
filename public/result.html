@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your Resume — AfnoCV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css?v=3" />
+</head>
+<body>
+
+<header class="topbar no-print">
+  <div class="topbar-inner">
+    <a href="/dashboard.html" class="brand">AfnoCV</a>
+    <nav class="topbar-nav">
+      <a href="/dashboard.html" class="nav-link">Dashboard</a>
+      <a href="/profile.html" class="nav-link">My Profile</a>
+      <button type="button" id="signout-btn" class="nav-link nav-link-button">Sign Out</button>
+    </nav>
+  </div>
+</header>
+
+<main class="page page-wide">
+
+  <div class="result-head no-print">
+    <div>
+      <h1>Your tailored resume</h1>
+      <p id="result-meta">Loading...</p>
+    </div>
+    <div class="result-actions">
+      <a href="/dashboard.html" class="btn-secondary">New Resume</a>
+      <button type="button" id="download-docx" class="btn-secondary" disabled>Download DOCX</button>
+      <button type="button" id="download-pdf" class="btn-primary" disabled>Download PDF</button>
+    </div>
+  </div>
+
+  <div class="banner banner-error no-print" id="result-error" hidden></div>
+
+  <div class="keywords no-print" id="keywords" hidden>
+    <div class="keyword-group" id="kw-used-group" hidden>
+      <span class="keyword-label">Matched from the posting</span>
+      <div class="keyword-tags" id="kw-used"></div>
+    </div>
+    <div class="keyword-group" id="kw-missing-group" hidden>
+      <span class="keyword-label">Not supported by your profile</span>
+      <div class="keyword-tags keyword-tags-muted" id="kw-missing"></div>
+      <p class="keyword-note">These appear in the posting but nothing in your profile backs them up, so they were deliberately left out. Add real experience on your profile if you have it.</p>
+    </div>
+  </div>
+
+  <div class="resume-sheet" id="resume-sheet">
+    <div class="resume-loading" id="resume-loading">Loading your resume...</div>
+  </div>
+
+</main>
+
+<script src="/js/api.js?v=3"></script>
+<script src="/js/result.js?v=3"></script>
+</body>
+</html>

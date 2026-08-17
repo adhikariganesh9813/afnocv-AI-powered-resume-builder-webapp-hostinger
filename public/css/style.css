@@ -940,3 +940,270 @@ textarea {
 .generate-note.is-error {
   color: var(--color-danger);
 }
+
+/* ==========================================================
+   Result page
+   ========================================================== */
+
+.page-wide {
+  max-width: 940px;
+}
+
+.result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.result-head h1 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.result-head p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-secondary {
+  display: inline-block;
+  background: var(--color-card);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.banner-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+/* Keyword summary */
+
+.keywords {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.keyword-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 7px;
+}
+
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keyword-tag {
+  background: #eef2ff;
+  color: var(--color-primary-dark);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 0.82rem;
+}
+
+.keyword-tags-muted .keyword-tag {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.keyword-note {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+/* ==========================================================
+   Rendered resume (ATS layout)
+   ========================================================== */
+
+.resume-sheet {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 48px 52px;
+}
+
+.resume-loading {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: var(--space-4) 0;
+}
+
+.resume {
+  font-family: 'Calibri', 'Inter', sans-serif;
+  color: #000;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.r-header {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.r-name {
+  font-size: 25px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.r-contact {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.r-section {
+  margin-top: 14px;
+}
+
+.r-section-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0 0 5px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #000;
+}
+
+.r-summary {
+  margin: 0;
+  text-align: justify;
+}
+
+.r-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.r-list li {
+  margin-bottom: 3px;
+}
+
+.r-entry {
+  margin-bottom: 9px;
+}
+
+.r-entry:last-child {
+  margin-bottom: 0;
+}
+
+.r-entry-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.r-right {
+  white-space: nowrap;
+  flex: none;
+}
+
+.r-strong {
+  font-weight: 700;
+}
+
+.r-italic {
+  font-style: italic;
+}
+
+.r-link {
+  font-size: 12.5px;
+}
+
+.r-bullets {
+  margin: 3px 0 0;
+  padding-left: 18px;
+}
+
+.r-bullets li {
+  margin-bottom: 3px;
+}
+
+@media (max-width: 700px) {
+  .resume-sheet {
+    padding: 24px 20px;
+  }
+
+  .r-entry-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .r-right {
+    white-space: normal;
+  }
+}
+
+/* Printing the page produces a clean resume with no app chrome around it. */
+@media print {
+  .no-print,
+  .topbar,
+  .save-bar {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .page,
+  .page-wide {
+    max-width: none;
+    padding: 0;
+  }
+
+  .resume-sheet {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+  }
+}

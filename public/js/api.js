@@ -52,4 +52,8 @@ const api = {
   getProfile: () => apiRequest('/api/profile'),
   saveProfile: (profile) =>
     apiRequest('/api/profile', { method: 'PUT', body: JSON.stringify(profile) }),
+  generate: (payload) =>
+    apiRequest('/api/generate', { method: 'POST', body: JSON.stringify(payload) }),
+  getGeneration: (id) => apiRequest(`/api/generate/${id}`),
+  listGenerations: () => apiRequest('/api/generate'),
 };

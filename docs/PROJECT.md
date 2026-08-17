@@ -171,6 +171,39 @@ Layered structure: `server.js` → `src/app.js` → `src/routes/` → `src/contr
 | GET | `/api/auth/me` | ✓ | Current user |
 | GET | `/api/profile` | ✓ | Full `ResumeProfile` for the signed-in user |
 | PUT | `/api/profile` | ✓ | Replace the signed-in user's whole profile |
+| POST | `/api/generate` | ✓ | Generate a tailored resume (body: `jobDescription`, `resumeType`) |
+| GET | `/api/generate` | ✓ | List the user's recent generations |
+| GET | `/api/generate/:id` | ✓ | One generation + its rendered HTML |
+| GET | `/api/generate/:id/download/pdf` | ✓ | Download as PDF |
+| GET | `/api/generate/:id/download/docx` | ✓ | Download as DOCX |
+
+### AI generation (Feature 3) — how it works
+
+| File | Role |
+|---|---|
+| `src/prompts/resume.prompt.js` | All prompt text: the system prompt (absolute rules, writing style, output schema) and the four `resume_type` rule blocks. Kept separate from logic so wording can be tuned without touching code. |
+| `src/services/deepseek.service.js` | Thin client for DeepSeek's OpenAI-compatible `/chat/completions`, using JSON mode (`response_format: {type: 'json_object'}`). Uses Node 20's built-in `fetch`; 120s timeout; maps provider failures to clear messages. |
+| `src/services/generation.service.js` | Validates input, loads the profile, calls the model, **normalises and sanitises the response**, saves to `generations`. |
+
+**Anti-hallucination design (two layers).** This is the core risk: a prompt that asks a model to make someone look good for a job invites it to invent skills.
+
+1. *Prompt-level* — hard rules forbid adding any technology, employer, title, degree, date, or metric not in the profile; the model reports unsupported job requirements in `keywordsMissing` instead of claiming them.
+2. *Code-level* (the real guarantee, since prompts can be ignored) — in `normalizeAiOutput`:
+   - `personalInfo`, `education`, `certifications`, `coursework`, `languages` are copied from the profile and **never sent to the model at all** — it cannot alter what it never sees.
+   - Experience and projects are matched back to the profile **by position**; only `bullets` are taken from the model, so it cannot add, drop, rename, or re-date a role.
+   - Skill items and project technologies are **filtered against the profile** (case-insensitive) — reordering for relevance is allowed, inventing is silently dropped.
+
+Verified with a stubbed model response that deliberately tried to inject a fake employer, a fake extra role, altered dates, and three invented skills: all were stripped, while legitimate rewording and relevance-reordering survived.
+
+`temperature` is 0.3 — enough flexibility to rephrase naturally, far enough from the creativity that invites fabrication.
+
+### Export (Feature 5)
+
+| File | Role |
+|---|---|
+| `src/services/resumeRender.service.js` | Generated resume JSON → ATS-friendly HTML (also exports `renderResumeText`, which Feature 6 will need). |
+| `src/services/pdf.service.js` | PDF via **PDFKit** — pure JavaScript, so it runs on Hostinger shared hosting where a headless browser would not. Produces real selectable text, verified extractable (essential for ATS parsing). |
+| `src/services/docx.service.js` | DOCX via the **docx** package. Single column with right-aligned tab stops rather than tables, since ATS parsers mishandle tables. |
 
 Verified working: input validation (400s), auth guard (401 for missing/invalid/expired tokens), and graceful 500s when the database is unreachable. **The DB-backed paths have not been tested against a real database yet** — `.env` still holds dummy credentials, so every DB call currently fails with a handled 500. That's the expected state until real Hostinger credentials are filled in.
 
@@ -179,7 +212,8 @@ Verified working: input validation (400s), auth guard (401 for missing/invalid/e
 | File | Page |
 |---|---|
 | `public/index.html` + `js/auth.js` | Homepage — marketing pitch + sign-in/create-account tabs. Redirects to the dashboard if already signed in. |
-| `public/dashboard.html` + `js/dashboard.js` | Dashboard — job-description textarea + resume-type picker (Natural / Basic Match / Max Match / Ultra Match). Warns if the profile is empty. **The Generate button does not generate yet** — it validates input and reports that the generation step isn't built. |
+| `public/dashboard.html` + `js/dashboard.js` | Dashboard — job-description textarea + resume-type picker (Natural / Basic Match / Max Match / Ultra Match). Warns if the profile is empty. Generate calls `/api/generate` and redirects to the result page. |
+| `public/result.html` + `js/result.js` | Result page — renders the tailored resume, shows which job-description keywords were matched vs. unsupported, and offers PDF/DOCX download (fetched as a blob so the auth header can be sent). Has a print stylesheet that strips the app chrome. |
 | `public/profile.html` + `js/profile.js` | Profile page — the full intake form (was `index.html` before auth existed). Now loads from and saves to `/api/profile` instead of `localStorage`. |
 | `public/js/api.js` | Shared helper — JWT storage, `fetch` wrapper, auto-redirect to homepage on 401, and the `api.*` methods each page calls. |
 | `public/css/style.css` | All styling — cards, forms, tag chips, nav, landing page, resume-type picker. |
@@ -188,11 +222,12 @@ Verified working: input validation (400s), auth guard (401 for missing/invalid/e
 
 ## Open questions / next steps
 
-1. **Fill real Hostinger DB credentials into `.env`**, then test signup → login → profile save/load end-to-end against the live database. Nothing DB-backed has run for real yet.
-2. Feature 3 (resume generation): wire the dashboard's Generate button to a new `/api/generate` endpoint → DeepSeek. Requires explaining structured-output/JSON-schema prompting **before** writing that code — per owner's explicit learning requirement. Takes profile + JD + `resume_type` as input, saves the result to `generations`.
-3. Feature 4 (template rendering): the resume layout is **not database data** — it's a fixed HTML/CSS template file in the codebase (e.g. `src/templates/resume.html`), shared by every user/generation. Not built yet.
-4. Feature 5: PDF + DOCX export from that template.
-5. Feature 6: Match Score — embeddings + hand-written cosine similarity. Still blocked on choosing an embeddings source, since DeepSeek has no embeddings endpoint (see stack table).
+1. **Add a real `DEEPSEEK_API_KEY` to `.env`** (local) and to the Hostinger environment. Everything else in the generation pipeline is built and tested; with a dummy key the API returns a clear 503 ("The AI provider is not configured yet"). Nothing has run against the real DeepSeek API yet — the pipeline was verified with a stubbed model response.
+2. **Feature 6 — Match Score** is the only feature left. Two things are still open:
+   - *Which embeddings source*: DeepSeek has no embeddings endpoint. Candidates: OpenAI embeddings, Google embeddings, or a hand-rolled TF-IDF vector as a teaching stand-in.
+   - The cosine similarity maths must be **explained before it is coded, and written by hand** (dot product / magnitudes, no library similarity call) — this is the owner's central deliberate learning goal for the project.
+   - Groundwork is already in place: `generations.match_score` exists (nullable), and `resumeRender.service.js` exports `renderResumeText()` to flatten a resume to plain text for embedding.
+3. Optional polish if time allows: a history view of past generations (the `GET /api/generate` endpoint already exists but nothing links to it).
 
 ## Decisions log
 
@@ -210,3 +245,10 @@ Verified working: input validation (400s), auth guard (401 for missing/invalid/e
 - **2026-08-16** — Owner ran `db/schema.sql` against the real Hostinger database; tables now exist.
 - **2026-08-16** — Built the full auth + profile backend and all three pages (homepage/dashboard/profile). Chose `localStorage` for JWT storage over httpOnly cookies: simpler for a static-file frontend with no build step, and acceptable here since the API enforces auth on every request regardless. Trade-off noted: `localStorage` tokens are readable by any script on the page, so this would need revisiting before handling sensitive data or adding third-party scripts.
 - **2026-08-16** — Profile saves replace the entire profile (delete + re-insert children in one transaction) rather than diffing individual rows. Chosen because the intake form always submits the complete profile; diffing would add complexity with no user-visible benefit.
+- **2026-08-17** — Built Feature 3 (AI generation), Feature 4 (template rendering) and Feature 5 (PDF/DOCX export). Key decisions:
+  - **Factual sections are withheld from the model entirely** rather than sent and checked afterwards — education, certifications, coursework, languages and personal info never enter the prompt, so they cannot come back altered. Also cuts token usage.
+  - **Experience/projects are matched by array position**, taking only bullets from the model, so roles cannot be added, dropped, renamed or re-dated.
+  - **Skills and project technologies are filtered against the profile.** Found during testing that the model could otherwise inject skills the candidate never listed (a stubbed response added Rust, Go and Kubernetes and they passed straight through) — exactly the "claims experience you don't have" failure the project is meant to avoid.
+  - **PDFKit over a headless browser** for PDF: pure JS, runs on Hostinger shared hosting, and produces real extractable text rather than an image (verified by parsing the generated PDF back out).
+  - **DOCX uses tab stops, not tables**, for right-aligned dates/locations — ATS parsers mishandle table layouts.
+  - Error handler gained an `expose` flag: 5xx errors are normally masked behind a generic message, but deliberately-written provider messages ("Add a real DEEPSEEK_API_KEY", "insufficient balance") pass through, since they are actionable and leak nothing.
