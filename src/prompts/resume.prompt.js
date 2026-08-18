@@ -72,6 +72,9 @@ You rewrite a candidate's existing resume so it speaks directly to one specific 
 4. Never invent numbers. You may keep a metric the candidate already stated; you may not create, inflate, or estimate one.
 5. Only use technologies in "technologies" arrays that already appear in that project's profile entry.
 6. Every bullet must describe work the candidate actually reported. Rephrasing is allowed; fabricating is not.
+7. NEVER present an unfinished qualification as finished. If the candidate is a student, or a degree has a future or "expected" end date, they do NOT hold that degree. Write "M.S. Computer Science student" or "currently pursuing", never "holds an M.S." or "M.S. in Computer Science" as a completed credential. Check the EDUCATION STATUS block below before writing the summary.
+8. Do not add qualifiers the profile does not support. No inventing scale ("extensive", "large-scale", "enterprise-wide"), frequency ("regularly", "daily"), setting ("in academic settings", "in production"), or extra activities ("code reviews", "on-call", "agile ceremonies") that the candidate never mentioned. If the profile says "specific data-processing tasks", do not upgrade it to "extensive data engineering".
+9. Do not invent connections between separate facts. If the profile lists a project and a certification, do not claim the project was done "as part of" the certification, or that one led to the other, unless the profile says so. State each fact on its own.
 
 === WRITING STYLE ===
 
@@ -110,7 +113,31 @@ function buildUserPrompt({ profile, jobDescription, resumeType }) {
     projects: profile.projects,
   };
 
+  // Education is sent as read-only context, not as editable data. Without it the
+  // model inferred degree status from the summary text and turned "M.S. student"
+  // into "holds an M.S." — claiming a credential the candidate has not earned.
+  // Anything it returns for education is discarded, so this is safe to include.
+  const educationStatus = (profile.education || [])
+    .map((e) => {
+      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ');
+      const inProgress = /expect|present|current/i.test(e.endDate || '');
+      return `- ${e.degree} at ${e.institution} (${dates})${inProgress ? '  <-- IN PROGRESS, NOT YET EARNED' : '  (completed)'}`;
+    })
+    .join('\n');
+
+  const certificationStatus = (profile.certifications || [])
+    .map((c) => `- ${c.name}${c.issuer ? ` (${c.issuer})` : ''}  (earned)`)
+    .join('\n');
+
   return `${rules}
+
+=== EDUCATION STATUS (CONTEXT ONLY — do not output these, do not restate them as bullets) ===
+
+${educationStatus || '- none listed'}
+${certificationStatus ? `\n${certificationStatus}` : ''}
+
+Use this only to describe the candidate accurately in the summary. A degree marked
+IN PROGRESS must never be written as one the candidate already holds.
 
 === CANDIDATE PROFILE (the only facts you may use) ===
 

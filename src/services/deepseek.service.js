@@ -20,7 +20,21 @@ function config() {
 
 // Asks for a JSON object back. DeepSeek's JSON mode guarantees the response
 // parses, not that it contains the fields we asked for — callers still validate.
-async function chatJson({ system, user, temperature = 0.3, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+//
+// In practice the provider occasionally emits a truncated object that does not
+// parse at all, so one retry is attempted before giving up: a second call is far
+// cheaper than making the user re-run a generation.
+async function chatJson(options) {
+  try {
+    return await chatJsonOnce(options);
+  } catch (err) {
+    if (!err.retryable) throw err;
+    console.warn('DeepSeek returned malformed JSON; retrying once.');
+    return chatJsonOnce(options);
+  }
+}
+
+async function chatJsonOnce({ system, user, temperature = 0.3, timeoutMs = DEFAULT_TIMEOUT_MS }) {
   const { apiKey, baseUrl, model } = config();
 
   const controller = new AbortController();
@@ -83,6 +97,7 @@ async function chatJson({ system, user, temperature = 0.3, timeoutMs = DEFAULT_T
     const err = new Error('The AI provider returned an empty response.');
     err.status = 502;
     err.expose = true;
+    err.retryable = true;
     throw err;
   }
 
@@ -93,6 +108,7 @@ async function chatJson({ system, user, temperature = 0.3, timeoutMs = DEFAULT_T
     const parseErr = new Error('The AI returned a malformed response. Please try again.');
     parseErr.status = 502;
     parseErr.expose = true;
+    parseErr.retryable = true;
     throw parseErr;
   }
 }

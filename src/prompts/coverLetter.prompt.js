@@ -43,6 +43,9 @@ const SYSTEM_PROMPT = `You write concise, credible cover letters for technical r
 2. If the posting asks for something the candidate lacks, do not claim it, and do not apologise for it. Simply write about what they do have.
 3. Never invent the company name, the role title, or a hiring manager's name. Use them only if the job description states them; otherwise return an empty string for that field and use a generic greeting.
 4. Never invent numbers or outcomes. You may reuse a metric the candidate already stated.
+5. NEVER present an unfinished qualification as finished. A degree marked IN PROGRESS below is one the candidate is still studying for — write "currently completing an M.S." or "M.S. student", never "holds" or "earned".
+6. Do not add qualifiers the profile does not support. No inventing scale ("extensive", "large-scale"), frequency ("regularly"), setting ("in academic settings", "in production"), or activities the candidate never mentioned. If the profile says "specific data-processing tasks", write that, not "extensive data engineering experience".
+7. Do not invent connections between separate facts. If the profile lists a project and a certification, do not claim the project was done "as part of" the certification, or that one produced the other, unless the profile says so.
 
 === WRITING RULES ===
 
@@ -74,8 +77,16 @@ function buildUserPrompt({ profile, jobDescription, resumeType }) {
     skills: profile.skills,
     experience: profile.experience,
     projects: profile.projects,
-    education: profile.education.map((e) => ({ degree: e.degree, institution: e.institution })),
-    certifications: profile.certifications.map((c) => c.name),
+    // Degree status is spelled out rather than left to be inferred, so an
+    // in-progress degree cannot be written up as one already earned.
+    education: (profile.education || []).map((e) => ({
+      degree: e.degree,
+      institution: e.institution,
+      status: /expect|present|current/i.test(e.endDate || '')
+        ? `IN PROGRESS — not yet earned (expected ${e.endDate})`
+        : 'completed',
+    })),
+    certifications: (profile.certifications || []).map((c) => c.name),
   };
 
   return `${tone}

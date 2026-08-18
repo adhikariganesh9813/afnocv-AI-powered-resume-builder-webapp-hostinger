@@ -147,6 +147,26 @@ function drawRuns(doc, pieces, startX, y, fontSize) {
   return x;
 }
 
+// Runs are drawn on a single line without wrapping, so a long URL would print
+// past the right margin. The displayed link text is shortened until the row
+// fits; the annotation still points at the full URL.
+function shortenLinkToFit(doc, pieces, maxWidth, fontSize) {
+  if (runsWidth(doc, pieces, fontSize) <= maxWidth) return pieces;
+
+  const index = pieces.findIndex((p) => p.url);
+  if (index === -1) return pieces;
+
+  const original = pieces[index].text;
+  for (let length = original.length - 1; length >= 14; length -= 1) {
+    const trial = pieces.map((p, i) =>
+      i === index ? { ...p, text: `${original.slice(0, length)}...` } : p
+    );
+    if (runsWidth(doc, trial, fontSize) <= maxWidth) return trial;
+  }
+
+  return pieces.map((p, i) => (i === index ? { ...p, text: `${original.slice(0, 14)}...` } : p));
+}
+
 function runsWidth(doc, pieces, fontSize) {
   doc.fontSize(fontSize);
   return pieces.reduce((sum, piece) => {
@@ -165,8 +185,9 @@ function centeredRuns(doc, pieces, s, y) {
     withSeparators.push(piece);
   });
 
-  const total = runsWidth(doc, withSeparators, fontSize);
-  drawRuns(doc, withSeparators, (doc.page.width - total) / 2, y, fontSize);
+  const fitted = shortenLinkToFit(doc, withSeparators, doc.page.width - s.margin * 2, fontSize);
+  const total = runsWidth(doc, fitted, fontSize);
+  drawRuns(doc, fitted, (doc.page.width - total) / 2, y, fontSize);
   return y + s.body * 1.25;
 }
 
@@ -259,7 +280,7 @@ function drawResume(doc, resume, s) {
         pieces.push({ text: ')' });
       }
 
-      drawRuns(doc, pieces, L.M, doc.y, s.body);
+      drawRuns(doc, shortenLinkToFit(doc, pieces, L.width(), s.body), L.M, doc.y, s.body);
       doc.y += s.body + 2.5 * s.space;
 
       (pr.bullets || []).forEach((b) => L.bullet(b));
