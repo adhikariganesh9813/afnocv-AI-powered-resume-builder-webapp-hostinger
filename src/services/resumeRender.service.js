@@ -9,6 +9,23 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
+// Users type "github.com/name" far more often than a full URL, so a scheme is
+// added when missing. Returns null when there is nothing linkable.
+function toUrl(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  if (/^www\./i.test(text) || /^[\w-]+(\.[\w-]+)+([/?#]|$)/.test(text)) return `https://${text}`;
+  return null;
+}
+
+function link(value, label) {
+  const url = toUrl(value);
+  const text = escapeHtml(label == null ? value : label);
+  if (!url) return text;
+  return `<a class="r-url" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+}
+
 function section(title, body) {
   if (!body) return '';
   return `<section class="r-section">
@@ -18,16 +35,21 @@ function section(title, body) {
 }
 
 function contactLine(personalInfo) {
-  return [personalInfo.email, personalInfo.phone, personalInfo.location]
-    .filter(Boolean)
-    .map(escapeHtml)
-    .join(' | ');
+  const parts = [];
+  if (personalInfo.email) {
+    parts.push(
+      `<a class="r-url" href="mailto:${escapeHtml(personalInfo.email)}">${escapeHtml(personalInfo.email)}</a>`
+    );
+  }
+  if (personalInfo.phone) parts.push(escapeHtml(personalInfo.phone));
+  if (personalInfo.location) parts.push(escapeHtml(personalInfo.location));
+  return parts.join(' | ');
 }
 
 function linksLine(personalInfo) {
   const links = [];
-  if (personalInfo.linkedin) links.push(`<strong>LinkedIn:</strong> ${escapeHtml(personalInfo.linkedin)}`);
-  if (personalInfo.github) links.push(`<strong>GitHub:</strong> ${escapeHtml(personalInfo.github)}`);
+  if (personalInfo.linkedin) links.push(`<strong>LinkedIn:</strong> ${link(personalInfo.linkedin)}`);
+  if (personalInfo.github) links.push(`<strong>GitHub:</strong> ${link(personalInfo.github)}`);
   return links.join(' | ');
 }
 
@@ -48,7 +70,7 @@ function renderEducation(education, certifications, coursework) {
       const degreeLine = [e.degree, e.gpa ? `GPA: ${e.gpa}` : null].filter(Boolean).map(escapeHtml).join(' | ');
       const dates = [e.startDate, e.endDate].filter(Boolean).map(escapeHtml).join(' – ');
       return `<div class="r-entry">
-  <div class="r-entry-row"><span class="r-strong">${escapeHtml(e.institution)}</span><span class="r-right">${escapeHtml(e.location)}</span></div>
+  <div class="r-entry-row"><span class="r-strong">${escapeHtml(e.institution)}</span><span class="r-right r-strong">${escapeHtml(e.location)}</span></div>
   <div class="r-entry-row"><span>${degreeLine}</span><span class="r-right">${dates}</span></div>
 </div>`;
     })
@@ -79,7 +101,7 @@ function renderExperience(experience) {
         .map((b) => `<li>${escapeHtml(b)}</li>`)
         .join('');
       return `<div class="r-entry">
-  <div class="r-entry-row"><span class="r-strong">${escapeHtml(e.company)}</span><span class="r-right">${escapeHtml(e.location)}</span></div>
+  <div class="r-entry-row"><span class="r-strong">${escapeHtml(e.company)}</span><span class="r-right r-strong">${escapeHtml(e.location)}</span></div>
   <div class="r-entry-row"><span class="r-italic">${escapeHtml(e.title)}</span><span class="r-right">${dates}</span></div>
   ${bullets ? `<ul class="r-bullets">${bullets}</ul>` : ''}
 </div>`;
@@ -93,10 +115,10 @@ function renderProjects(projects) {
       const tech = (p.technologies || []).length
         ? ` | <span class="r-italic">${p.technologies.map(escapeHtml).join(', ')}</span>`
         : '';
-      const link = p.link ? ` <span class="r-link">(${escapeHtml(p.link)})</span>` : '';
+      const url = p.link ? ` <span class="r-link">(${link(p.link)})</span>` : '';
       const bullets = (p.bullets || []).map((b) => `<li>${escapeHtml(b)}</li>`).join('');
       return `<div class="r-entry">
-  <div><span class="r-strong">${escapeHtml(p.name)}</span>${tech}${link}</div>
+  <div><span class="r-strong">${escapeHtml(p.name)}</span>${tech}${url}</div>
   ${bullets ? `<ul class="r-bullets">${bullets}</ul>` : ''}
 </div>`;
     })
@@ -115,6 +137,8 @@ function renderLanguages(languages) {
 function renderResumeHtml(resume) {
   const p = resume.personalInfo || {};
 
+  // Section order is fixed: summary, education, skills, experience, projects,
+  // languages. Changing it here means changing pdf.service and docx.service too.
   return `<article class="resume">
   <header class="r-header">
     <h1 class="r-name">${escapeHtml(p.fullName)}</h1>
@@ -122,8 +146,8 @@ function renderResumeHtml(resume) {
     <div class="r-contact">${linksLine(p)}</div>
   </header>
   ${section('Professional Summary', resume.summary ? `<p class="r-summary">${escapeHtml(resume.summary)}</p>` : '')}
-  ${section('Technical Skills', renderSkills(resume.skills || {}))}
   ${section('Education', renderEducation(resume.education, resume.certifications, resume.coursework))}
+  ${section('Technical Skills', renderSkills(resume.skills || {}))}
   ${section('Professional Experience', renderExperience(resume.experience))}
   ${section('Key Projects', renderProjects(resume.projects))}
   ${section('Languages', renderLanguages(resume.languages))}
@@ -133,15 +157,15 @@ function renderResumeHtml(resume) {
 // Flat text version — used later for the match-score feature, and handy for debugging.
 function renderResumeText(resume) {
   const p = resume.personalInfo || {};
-  const lines = [p.fullName, contactLine(p).replace(/ \| /g, ' '), resume.summary || ''];
-
-  (resume.skills && resume.skills.categories ? resume.skills.categories : []).forEach((c) => {
-    if (c.items && c.items.length) lines.push(`${c.name}: ${c.items.join(', ')}`);
-  });
+  const lines = [p.fullName, [p.email, p.phone, p.location].filter(Boolean).join(' '), resume.summary || ''];
 
   (resume.education || []).forEach((e) => lines.push(`${e.institution} ${e.degree}`));
   (resume.certifications || []).forEach((c) => lines.push(c.name));
   if (resume.coursework && resume.coursework.length) lines.push(resume.coursework.join(', '));
+
+  (resume.skills && resume.skills.categories ? resume.skills.categories : []).forEach((c) => {
+    if (c.items && c.items.length) lines.push(`${c.name}: ${c.items.join(', ')}`);
+  });
 
   (resume.experience || []).forEach((e) => {
     lines.push(`${e.title} ${e.company}`);
@@ -156,4 +180,4 @@ function renderResumeText(resume) {
   return lines.filter(Boolean).join('\n');
 }
 
-module.exports = { renderResumeHtml, renderResumeText, escapeHtml };
+module.exports = { renderResumeHtml, renderResumeText, escapeHtml, toUrl };

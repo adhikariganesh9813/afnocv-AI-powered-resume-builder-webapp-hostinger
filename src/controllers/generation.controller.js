@@ -16,13 +16,7 @@ function withHtml(generation) {
   return {
     ...generation,
     html: renderResumeHtml(generation.resume),
-    coverLetterHtml: generation.coverLetter
-      ? renderCoverLetterHtml(
-          generation.coverLetter,
-          generation.resume.personalInfo,
-          generation.createdAt || new Date()
-        )
-      : null,
+    coverLetterHtml: generation.coverLetter ? renderCoverLetterHtml(generation.coverLetter) : null,
   };
 }
 
@@ -69,8 +63,7 @@ async function download(req, res, next) {
       throw err;
     }
 
-    const generation = await generationService.getGeneration(req.user.userId, req.params.id);
-    const { resume, coverLetter, createdAt } = generation;
+    const { resume, coverLetter } = await generationService.getGeneration(req.user.userId, req.params.id);
 
     if (doc === 'cover' && !coverLetter) {
       const err = new Error('This resume was generated before cover letters were added. Generate a new one.');
@@ -82,8 +75,7 @@ async function download(req, res, next) {
     if (doc === 'resume') {
       buffer = format === 'pdf' ? await buildPdf(resume) : await buildDocx(resume);
     } else {
-      const args = [coverLetter, resume.personalInfo, createdAt || new Date()];
-      buffer = format === 'pdf' ? await buildCoverLetterPdf(...args) : await buildCoverLetterDocx(...args);
+      buffer = format === 'pdf' ? await buildCoverLetterPdf(coverLetter) : await buildCoverLetterDocx(coverLetter);
     }
 
     const filename = `${fileBaseName(resume, doc === 'resume' ? 'Resume' : 'Cover_Letter')}.${format}`;

@@ -1228,37 +1228,18 @@ textarea {
   margin-bottom: 3px;
 }
 
+.r-url {
+  color: #0b4fbf;
+  text-decoration: underline;
+}
+
+.r-url:hover {
+  color: #06327d;
+}
+
 /* ==========================================================
    Rendered cover letter
    ========================================================== */
-
-.cl-header {
-  text-align: center;
-  padding-bottom: 12px;
-  margin-bottom: 22px;
-  border-bottom: 1px solid #d7dce5;
-}
-
-.cl-name {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 3px;
-  letter-spacing: -0.01em;
-}
-
-.cl-contact {
-  font-size: 11.5px;
-  color: #333;
-}
-
-.cl-date {
-  margin-bottom: 18px;
-}
-
-.cl-recipient {
-  margin-bottom: 18px;
-  line-height: 1.5;
-}
 
 .cl-greeting {
   margin-bottom: 14px;
@@ -1270,11 +1251,12 @@ textarea {
 }
 
 .cl-closing {
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
+/* One line of signature space, not a chasm. */
 .cl-signature {
-  margin-top: 26px;
+  margin-top: 20px;
   font-weight: 600;
 }
 
