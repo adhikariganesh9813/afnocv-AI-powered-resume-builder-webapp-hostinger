@@ -33,19 +33,30 @@ function normalizeAiOutput(ai, profile) {
   const profileSkills = (profile.skills.categories || []).flatMap((c) => c.items || []);
   const isRealSkill = (item) => profileSkills.some((p) => p.toLowerCase() === item.toLowerCase());
 
-  const categories = (ai.skills && Array.isArray(ai.skills.categories) ? ai.skills.categories : [])
+  const chosen = (ai.skills && Array.isArray(ai.skills.categories) ? ai.skills.categories : [])
     .filter((c) => c && SKILL_CATEGORIES.includes(c.name))
     .map((c) => ({ name: c.name, items: toStringArray(c.items).filter(isRealSkill) }));
 
-  // Guarantee both categories exist, falling back to the profile's own values.
+  // The model selects which skills are worth showing; the profile decides the
+  // order. Re-sorting here means its selection can never double as reordering.
   const skills = {
     categories: SKILL_CATEGORIES.map((name) => {
-      const fromAi = categories.find((c) => c.name === name);
-      if (fromAi && fromAi.items.length) return fromAi;
       const fromProfile = (profile.skills.categories || []).find((c) => c.name === name);
-      return { name, items: fromProfile ? fromProfile.items : [] };
+      const profileItems = fromProfile ? fromProfile.items : [];
+      const fromAi = chosen.find((c) => c.name === name);
+      if (!fromAi || !fromAi.items.length) return { name, items: profileItems };
+
+      const keep = new Set(fromAi.items.map((i) => i.toLowerCase()));
+      const items = profileItems.filter((i) => keep.has(i.toLowerCase()));
+      return { name, items: items.length ? items : profileItems };
     }),
   };
+
+  // Same treatment for coursework: filter to what the model kept, in profile order.
+  const courseworkKeep = new Set(toStringArray(ai.coursework).map((c) => c.toLowerCase()));
+  const coursework = courseworkKeep.size
+    ? (profile.coursework || []).filter((c) => courseworkKeep.has(c.toLowerCase()))
+    : profile.coursework || [];
 
   // Experience and projects are matched back to the profile by position so the
   // AI cannot add, drop, or reattribute a role — only its bullets are taken.
@@ -55,20 +66,29 @@ function normalizeAiOutput(ai, profile) {
     return { ...original, bullets: bullets.length ? bullets : original.bullets };
   });
 
-  const projects = profile.projects.map((original, i) => {
-    const generated = Array.isArray(ai.projects) ? ai.projects[i] : null;
-    const bullets = generated ? toStringArray(generated.bullets) : [];
-    // Only technologies the profile already lists are allowed through.
-    const techFromAi = generated ? toStringArray(generated.technologies) : [];
-    const allowed = techFromAi.filter((t) =>
-      original.technologies.some((o) => o.toLowerCase() === t.toLowerCase())
-    );
-    return {
-      ...original,
-      technologies: allowed.length ? allowed : original.technologies,
-      bullets: bullets.length ? bullets : original.bullets,
-    };
-  });
+  const projects = profile.projects
+    .map((original, i) => {
+      const generated = Array.isArray(ai.projects) ? ai.projects[i] : null;
+      const bullets = generated ? toStringArray(generated.bullets) : [];
+      // Only technologies the profile already lists are allowed through.
+      const techFromAi = generated ? toStringArray(generated.technologies) : [];
+      const allowed = techFromAi.filter((t) =>
+        original.technologies.some((o) => o.toLowerCase() === t.toLowerCase())
+      );
+      return {
+        ...original,
+        technologies: allowed.length ? allowed : original.technologies,
+        bullets: bullets.length ? bullets : original.bullets,
+        // Missing flag means keep it: dropping content needs a deliberate signal.
+        include: !generated || generated.include !== false,
+      };
+    })
+    .filter((p) => p.include)
+    .map(({ include, ...project }) => project);
+
+  // Never return an empty projects section just because the model rejected
+  // everything — fall back to what the profile had.
+  const finalProjects = projects.length ? projects : profile.projects;
 
   return {
     // personalInfo, education, certifications, coursework and languages are
@@ -78,9 +98,9 @@ function normalizeAiOutput(ai, profile) {
     skills,
     education: profile.education,
     certifications: profile.certifications,
-    coursework: profile.coursework,
+    coursework,
     experience,
-    projects,
+    projects: finalProjects,
     languages: profile.languages,
     keywordsUsed: toStringArray(ai.keywordsUsed),
     keywordsMissing: toStringArray(ai.keywordsMissing),
@@ -129,28 +149,29 @@ async function generate(userId, { jobDescription, resumeType }) {
     badRequest('Add at least one experience or project on the profile page first.');
   }
 
-  // Two focused calls rather than one large one: each response stays well within
-  // output limits and neither document's schema can confuse the other. Run in
-  // parallel so the user waits for the slower of the two, not their sum.
-  const [resumeResponse, letterResponse] = await Promise.all([
-    deepseek.chatJson({
-      system: resumePrompt.SYSTEM_PROMPT,
-      user: resumePrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType }),
-      // Low but non-zero: tailoring needs some flexibility of phrasing, while
-      // staying well away from the creativity that invites invented facts.
-      temperature: 0.3,
-    }),
-    deepseek.chatJson({
-      system: coverLetterPrompt.SYSTEM_PROMPT,
-      user: coverLetterPrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType }),
-      // Slightly higher than the resume: prose reads badly when it is too rigid,
-      // and the factual claims here are constrained by the prompt rather than by
-      // structure, so the extra latitude affects wording rather than content.
-      temperature: 0.5,
-    }),
-  ]);
+  // Sequential, not parallel: the letter is written from the FINISHED resume, so
+  // it argues for the document the employer will actually read and never raises
+  // material that was trimmed out of it. Costs roughly double the wall-clock time
+  // of running both at once, which is the price of the two staying consistent.
+  const resumeResponse = await deepseek.chatJson({
+    system: resumePrompt.SYSTEM_PROMPT,
+    user: resumePrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType }),
+    // Low but non-zero: tailoring needs some flexibility of phrasing, while
+    // staying well away from the creativity that invites invented facts.
+    temperature: 0.3,
+  });
 
   const resume = normalizeAiOutput(resumeResponse.json, profile);
+
+  const letterResponse = await deepseek.chatJson({
+    system: coverLetterPrompt.SYSTEM_PROMPT,
+    user: coverLetterPrompt.buildUserPrompt({ resume, jobDescription: jd, resumeType }),
+    // Slightly higher than the resume: prose reads badly when it is too rigid,
+    // and the factual claims here are constrained by the prompt rather than by
+    // structure, so the extra latitude affects wording rather than content.
+    temperature: 0.5,
+  });
+
   const coverLetter = normalizeCoverLetter(letterResponse.json, profile);
 
   // Both documents live in generated_json: they are produced together, replaced

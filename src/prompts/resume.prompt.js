@@ -4,26 +4,25 @@
 // How aggressively the model may rewrite. This is the only thing that changes
 // between the four resume types the dashboard offers.
 const RESUME_TYPE_RULES = {
-  natural: `TAILORING LEVEL: NATURAL (minimal).
-- Keep the candidate's existing bullet wording essentially as written. Fix only clear grammar or punctuation problems.
-- Do NOT introduce vocabulary from the job description into the bullets.
-- Your only real work: order experience bullets, projects, and skills so the most relevant-to-this-job items come first.`,
+  natural: `TAILORING LEVEL 1 of 4 — NATURAL (no rewriting at all).
+- Reproduce every bullet EXACTLY as the candidate wrote it. Copy the text character for character.
+- The only permitted change is fixing an outright spelling or punctuation error.
+- Do NOT reword, tighten, shorten, combine, or re-emphasise anything. Do NOT introduce any vocabulary from the job description.
+- Your only real work at this level is selecting which optional items are relevant enough to include (see SELECTING WHAT TO INCLUDE).`,
 
-  basic_match: `TAILORING LEVEL: BASIC MATCH (light).
-- Lightly tighten each bullet: stronger action verb, remove filler, keep the same facts and roughly the same length.
-- Where the candidate ALREADY has a skill or tool that the posting names, you may use the posting's term for it (e.g. their "MS SQL" -> "SQL Server" if the posting says SQL Server).
-- Do not restructure bullets or shift their emphasis.
-- Order sections and skills by relevance to the posting.`,
+  basic_match: `TAILORING LEVEL 2 of 4 — BASIC MATCH (light polish).
+- Lightly tighten each bullet: a stronger opening verb, remove filler words. Keep the same facts, the same emphasis, and roughly the same length.
+- Where the candidate ALREADY has a skill or tool the posting names, you may switch to the posting's term for it (their "MS SQL" -> "SQL Server" if the posting says SQL Server).
+- Do not restructure a bullet or shift what it emphasises.`,
 
-  max_match: `TAILORING LEVEL: MAX MATCH (substantial rewriting).
-- Rewrite each bullet to lead with the outcome and mirror the posting's language and priorities, while describing the exact same work the candidate actually did.
-- Emphasize the parts of each role that map to the posting's stated responsibilities; compress the parts that don't.
-- Reuse the posting's exact terminology wherever the candidate's real experience genuinely maps onto it.
-- Order everything by relevance to the posting.`,
+  max_match: `TAILORING LEVEL 3 of 4 — MAX MATCH (substantial rewriting).
+- Rewrite each bullet to lead with its outcome and mirror the posting's language and priorities, while describing the exact same work the candidate actually did.
+- Emphasise the parts of each role that map to the posting's stated responsibilities; compress the parts that do not.
+- Reuse the posting's exact terminology wherever the candidate's real experience genuinely maps onto it.`,
 
-  ultra_match: `TAILORING LEVEL: ULTRA MATCH (maximum keyword alignment for ATS).
+  ultra_match: `TAILORING LEVEL 4 of 4 — ULTRA MATCH (maximum keyword alignment for ATS).
 - Rewrite bullets to carry as many of the posting's genuine keywords as the candidate's real experience honestly supports.
-- Mirror the posting's phrasing closely, including its exact tool, method, and process names, wherever they truthfully describe the candidate's work.
+- Mirror the posting's phrasing closely, including its exact tool, method and process names, wherever they truthfully describe the candidate's work.
 - Front-load each bullet with the most ATS-relevant term.
 - Aggressive rewording is expected — but the underlying facts must remain exactly what the candidate reported. Keyword stuffing that implies experience the candidate does not have is a failure, not a success.`,
 };
@@ -51,11 +50,12 @@ const OUTPUT_SCHEMA = `{
   "projects": [
     {
       "name": "string - copy exactly from profile",
-      "link": "string - copy exactly from profile",
-      "technologies": ["string - only technologies already listed in the profile"],
+      "include": "boolean - true if this project is worth showing for THIS job, false to leave it off",
+      "technologies": ["string - only technologies already listed for this project in the profile"],
       "bullets": ["string", "..."]
     }
   ],
+  "coursework": ["string - only courses from the profile that are relevant to this posting"],
   "keywordsUsed": ["string - job description terms you were able to use truthfully"],
   "keywordsMissing": ["string - important job description terms the candidate has no basis to claim"]
 }`;
@@ -93,10 +93,37 @@ The JSON must match this schema exactly:
 
 ${OUTPUT_SCHEMA}
 
-Notes on the schema:
-- Include every role from the profile's experience array, in the same order unless relevance clearly justifies reordering.
-- Include every project from the profile's projects array.
-- Both skill categories must be present, even if one has few items. Reorder items within each so the most job-relevant come first. You may only include skills already in the profile.
+=== ORDER — DO NOT REARRANGE ANYTHING ===
+
+Keep everything in exactly the order the profile gives it. Do not move a bullet,
+role, project, skill or course to a different position because it seems more
+relevant. Relevance is expressed by what you INCLUDE, never by reordering.
+Return the arrays in the same order you received them.
+
+=== SELECTING WHAT TO INCLUDE ===
+
+A profile is a long store of everything the candidate has done; a resume is one
+page aimed at one job. Choose what earns its place:
+
+- EXPERIENCE: always include every role, in profile order. Never drop a job — gaps
+  in a work history look worse than a less-relevant role.
+- PROJECTS: set "include": false for a project with no bearing on this posting.
+  Keep anything with a plausible connection — shared technology, similar problem,
+  transferable skill. If in doubt, include it. Never return every project as false;
+  if none are strongly relevant, keep the strongest one or two.
+- SKILLS: include the ones that matter for this job plus the candidate's core
+  general skills. Drop only what is clearly irrelevant here. Keep profile order.
+  You may only list skills already in the profile.
+- COURSEWORK: keep only courses relevant to this posting. Return an empty array if
+  none are. Only use course names exactly as they appear in the profile.
+
+Judge relevance generously rather than strictly: something loosely related is
+usually worth keeping, something with no connection at all is not.
+
+Other schema notes:
+- Include every role from the profile's experience array.
+- Include an entry for every project, each with its "include" flag set.
+- Both skill categories must be present, even if one ends up with few items.
 - "keywordsMissing" is important and useful — be honest there. It tells the candidate what genuine gaps exist.`;
 
 function buildUserPrompt({ profile, jobDescription, resumeType }) {
@@ -109,6 +136,7 @@ function buildUserPrompt({ profile, jobDescription, resumeType }) {
   const editableProfile = {
     summary: profile.summary,
     skills: profile.skills,
+    coursework: profile.coursework,
     experience: profile.experience,
     projects: profile.projects,
   };
@@ -117,11 +145,14 @@ function buildUserPrompt({ profile, jobDescription, resumeType }) {
   // model inferred degree status from the summary text and turned "M.S. student"
   // into "holds an M.S." — claiming a credential the candidate has not earned.
   // Anything it returns for education is discarded, so this is safe to include.
+  // Status comes from the checkbox the user ticks, not from guessing at the date
+  // text, so "still studying" is a stated fact rather than an inference.
   const educationStatus = (profile.education || [])
     .map((e) => {
       const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ');
-      const inProgress = /expect|present|current/i.test(e.endDate || '');
-      return `- ${e.degree} at ${e.institution} (${dates})${inProgress ? '  <-- IN PROGRESS, NOT YET EARNED' : '  (completed)'}`;
+      return `- ${e.degree} at ${e.institution} (${dates})${
+        e.completed ? '  (COMPLETED — already earned)' : '  <-- IN PROGRESS, NOT YET EARNED'
+      }`;
     })
     .join('\n');
 

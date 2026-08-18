@@ -2,6 +2,12 @@ Auth.requirePage();
 
 document.getElementById('signout-btn').addEventListener('click', Auth.signOut);
 
+// Arriving straight from signup: explain why this page comes first.
+if (new URLSearchParams(window.location.search).get('welcome') === '1') {
+  const banner = document.getElementById('welcome-banner');
+  if (banner) banner.hidden = false;
+}
+
 // ---------- Template cloning ----------
 
 function addEntry(containerId, templateId) {
@@ -121,6 +127,11 @@ function fieldValue(cardEl, fieldName) {
   return el ? el.value.trim() : '';
 }
 
+function isChecked(cardEl, fieldName) {
+  const el = cardEl.querySelector(`[data-field="${fieldName}"]`);
+  return Boolean(el && el.checked);
+}
+
 function serializeForm() {
   const profile = {
     personalInfo: {
@@ -154,6 +165,7 @@ function serializeForm() {
       gpa: fieldValue(card, 'gpa'),
       startDate: fieldValue(card, 'startDate'),
       endDate: fieldValue(card, 'endDate'),
+      completed: isChecked(card, 'completed'),
     });
   });
 
@@ -217,7 +229,9 @@ function populateForm(profile) {
     const card = addEntry('education-list', 'education-template');
     Object.keys(entry).forEach((key) => {
       const el = card.querySelector(`[data-field="${key}"]`);
-      if (el) el.value = entry[key];
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = Boolean(entry[key]);
+      else el.value = entry[key];
     });
   });
 

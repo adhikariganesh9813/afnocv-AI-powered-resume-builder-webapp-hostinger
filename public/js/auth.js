@@ -84,7 +84,7 @@ function showError(elementId, message) {
   el.hidden = false;
 }
 
-async function submitAuth(event, { errorId, request }) {
+async function submitAuth(event, { errorId, request, destination }) {
   event.preventDefault();
   const button = event.target.querySelector('button[type="submit"]');
   const originalText = button.textContent;
@@ -95,7 +95,7 @@ async function submitAuth(event, { errorId, request }) {
   try {
     const { token } = await request();
     Auth.setToken(token);
-    window.location.href = '/dashboard.html';
+    window.location.href = destination;
   } catch (err) {
     showError(errorId, err.message);
     button.disabled = false;
@@ -106,6 +106,7 @@ async function submitAuth(event, { errorId, request }) {
 forms.login.addEventListener('submit', (e) =>
   submitAuth(e, {
     errorId: 'login-error',
+    destination: '/dashboard.html',
     request: () =>
       api.login(
         document.getElementById('login-email').value,
@@ -117,6 +118,9 @@ forms.login.addEventListener('submit', (e) =>
 forms.signup.addEventListener('submit', (e) =>
   submitAuth(e, {
     errorId: 'signup-error',
+    // New accounts start on the profile page: there is nothing to generate from
+    // until it is filled in, so sending them to the dashboard is a dead end.
+    destination: '/profile.html?welcome=1',
     request: () =>
       api.signup(
         document.getElementById('signup-email').value,

@@ -26,6 +26,15 @@ function link(value, label) {
   return `<a class="r-url" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 }
 
+// An unfinished degree shows its end date as "December 2026 (Expected)".
+// Appended here rather than stored, so ticking the checkbox is enough and the
+// user never has to type it — and it can't end up doubled.
+function educationDates(entry) {
+  let end = (entry.endDate || '').trim();
+  if (!entry.completed && end && !/\(expected\)/i.test(end)) end = `${end} (Expected)`;
+  return [entry.startDate, end].filter(Boolean).join(' – ');
+}
+
 function section(title, body) {
   if (!body) return '';
   return `<section class="r-section">
@@ -68,7 +77,7 @@ function renderEducation(education, certifications, coursework) {
   const entries = (education || [])
     .map((e) => {
       const degreeLine = [e.degree, e.gpa ? `GPA: ${e.gpa}` : null].filter(Boolean).map(escapeHtml).join(' | ');
-      const dates = [e.startDate, e.endDate].filter(Boolean).map(escapeHtml).join(' – ');
+      const dates = escapeHtml(educationDates(e));
       return `<div class="r-entry">
   <div class="r-entry-row"><span class="r-strong">${escapeHtml(e.institution)}</span><span class="r-right r-strong">${escapeHtml(e.location)}</span></div>
   <div class="r-entry-row"><span>${degreeLine}</span><span class="r-right">${dates}</span></div>
@@ -180,4 +189,4 @@ function renderResumeText(resume) {
   return lines.filter(Boolean).join('\n');
 }
 
-module.exports = { renderResumeHtml, renderResumeText, escapeHtml, toUrl };
+module.exports = { renderResumeHtml, renderResumeText, escapeHtml, toUrl, educationDates };

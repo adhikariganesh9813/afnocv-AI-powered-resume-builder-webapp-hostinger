@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=5" />
+<link rel="stylesheet" href="/css/style.css?v=6" />
 </head>
 <body>
 
@@ -44,33 +44,45 @@
 
   <section class="card">
     <h2 class="card-title">Resume Type</h2>
-    <p class="card-subtitle">How aggressively should your existing experience be rewritten to match the posting?</p>
+    <p class="card-subtitle">How aggressively should your wording be rewritten? Listed from least to most aggressive — your facts never change, only the phrasing.</p>
     <div class="resume-types">
       <label class="resume-type">
         <input type="radio" name="resumeType" value="natural" />
         <span class="resume-type-body">
-          <span class="resume-type-name">Natural</span>
-          <span class="resume-type-desc">Keep your wording as-is. Only reorders sections for relevance.</span>
+          <span class="resume-type-head">
+            <span class="resume-type-name">Natural</span>
+            <span class="resume-type-meter" aria-label="Tailoring level 1 of 4"><i class="on"></i><i></i><i></i><i></i></span>
+          </span>
+          <span class="resume-type-desc">Only use Layout. Your wording is kept exactly as written.</span>
         </span>
       </label>
       <label class="resume-type">
         <input type="radio" name="resumeType" value="basic_match" />
         <span class="resume-type-body">
-          <span class="resume-type-name">Basic Match</span>
-          <span class="resume-type-desc">Light touch-ups and light keyword alignment.</span>
+          <span class="resume-type-head">
+            <span class="resume-type-name">Basic Match</span>
+            <span class="resume-type-meter" aria-label="Tailoring level 2 of 4"><i class="on"></i><i class="on"></i><i></i><i></i></span>
+          </span>
+          <span class="resume-type-desc">Light polish. Same facts, same emphasis, tighter wording.</span>
         </span>
       </label>
       <label class="resume-type">
         <input type="radio" name="resumeType" value="max_match" checked />
         <span class="resume-type-body">
-          <span class="resume-type-name">Max Match</span>
+          <span class="resume-type-head">
+            <span class="resume-type-name">Max Match</span>
+            <span class="resume-type-meter" aria-label="Tailoring level 3 of 4"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+          </span>
           <span class="resume-type-desc">Rewrites bullets to mirror the posting's language and priorities.</span>
         </span>
       </label>
       <label class="resume-type">
         <input type="radio" name="resumeType" value="ultra_match" />
         <span class="resume-type-body">
-          <span class="resume-type-name">Ultra Match</span>
+          <span class="resume-type-head">
+            <span class="resume-type-name">Ultra Match</span>
+            <span class="resume-type-meter" aria-label="Tailoring level 4 of 4"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
+          </span>
           <span class="resume-type-desc">Most aggressive keyword alignment for ATS screening.</span>
         </span>
       </label>
@@ -84,7 +96,7 @@
 
 </main>
 
-<script src="/js/api.js?v=5"></script>
-<script src="/js/dashboard.js?v=5"></script>
+<script src="/js/api.js?v=6"></script>
+<script src="/js/dashboard.js?v=6"></script>
 </body>
 </html>

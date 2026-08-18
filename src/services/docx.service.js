@@ -8,7 +8,7 @@ const {
   BorderStyle,
   TabStopType,
 } = require('docx');
-const { toUrl } = require('./resumeRender.service');
+const { toUrl, educationDates } = require('./resumeRender.service');
 
 // Matches the ATS template: single column, no tables, no text boxes.
 // Right-aligned dates/locations use tab stops rather than a table so parsers
@@ -129,8 +129,7 @@ function buildChildren(resume) {
     (resume.education || []).forEach((e) => {
       children.push(splitLine(e.institution, e.location, { bold: true }, { bold: true }));
       const degreeLine = [e.degree, e.gpa ? `GPA: ${e.gpa}` : null].filter(Boolean).join(' | ');
-      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ');
-      children.push(splitLine(degreeLine, dates));
+      children.push(splitLine(degreeLine, educationDates(e)));
     });
     if (certs.length) children.push(labelledLine('Certifications', certs.join(', ')));
     if (resume.coursework && resume.coursework.length) {

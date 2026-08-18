@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=5" />
+<link rel="stylesheet" href="/css/style.css?v=6" />
 </head>
 <body>
 
@@ -23,6 +23,10 @@
 </header>
 
 <main class="page">
+  <div class="banner banner-info" id="welcome-banner" hidden>
+    <strong>Welcome — start here.</strong> Fill in your background once and save it. Everything you generate is built from this page, so the more complete it is, the better the tailoring. You can head to the dashboard once it is saved.
+  </div>
+
   <div class="page-heading">
     <h1>My Profile</h1>
     <p>This is the source material the AI uses. Write bullets in your own words — they get tailored per job at generation time.</p>
@@ -175,9 +179,14 @@
       </div>
       <div class="form-field">
         <label>End Date</label>
-        <input type="text" data-field="endDate" placeholder="December 2026 (Expected)" />
+        <input type="text" data-field="endDate" placeholder="December 2026" />
       </div>
     </div>
+    <label class="checkbox-field">
+      <input type="checkbox" data-field="completed" />
+      <span>I have completed this degree</span>
+      <span class="checkbox-hint">Leave unticked if you are still studying — the resume will show the end date as "(Expected)" and the cover letter will say you are currently pursuing it.</span>
+    </label>
   </div>
 </template>
 
@@ -298,7 +307,7 @@
   </div>
 </template>
 
-<script src="/js/api.js?v=5"></script>
-<script src="/js/profile.js?v=5"></script>
+<script src="/js/api.js?v=6"></script>
+<script src="/js/profile.js?v=6"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ async function getProfile(userId) {
     await Promise.all([
       query('SELECT category, value FROM skills WHERE profile_id = ? ORDER BY id', [profileId]),
       query(
-        'SELECT institution, location, degree, gpa, start_date, end_date FROM education WHERE profile_id = ? ORDER BY id',
+        'SELECT institution, location, degree, gpa, start_date, end_date, completed FROM education WHERE profile_id = ? ORDER BY id',
         [profileId]
       ),
       query('SELECT name, issuer FROM certifications WHERE profile_id = ? ORDER BY id', [profileId]),
@@ -84,6 +84,7 @@ async function getProfile(userId) {
       gpa: e.gpa || '',
       startDate: e.start_date || '',
       endDate: e.end_date || '',
+      completed: Boolean(e.completed),
     })),
     certifications: certifications.map((c) => ({
       name: c.name || '',
@@ -168,8 +169,8 @@ async function saveProfile(userId, profileData) {
 
     for (const entry of profileData.education || []) {
       await conn.execute(
-        `INSERT INTO education (profile_id, institution, location, degree, gpa, start_date, end_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO education (profile_id, institution, location, degree, gpa, start_date, end_date, completed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           profileId,
           entry.institution || null,
@@ -178,6 +179,7 @@ async function saveProfile(userId, profileData) {
           entry.gpa || null,
           entry.startDate || null,
           entry.endDate || null,
+          entry.completed ? 1 : 0,
         ]
       );
     }

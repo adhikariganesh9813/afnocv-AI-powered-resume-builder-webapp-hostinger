@@ -37,9 +37,14 @@ const OUTPUT_SCHEMA = `{
 
 const SYSTEM_PROMPT = `You write concise, credible cover letters for technical roles.
 
+You are given the candidate's FINISHED RESUME for this specific job — already
+tailored and trimmed — plus the job posting. The letter must draw only on what
+that resume says. Anything the resume leaves out was deliberately left out; do
+not reach for it.
+
 === ABSOLUTE RULES — violating any of these makes the output unusable ===
 
-1. NEVER invent facts. Every claim must trace back to the candidate's profile: no technology, employer, title, degree, certification, date, metric, or achievement that is not there.
+1. NEVER invent facts. Every claim must trace back to the resume you were given: no technology, employer, title, degree, certification, date, metric, or achievement that is not in it.
 2. If the posting asks for something the candidate lacks, do not claim it, and do not apologise for it. Simply write about what they do have.
 3. Never invent the company name, the role title, or a hiring manager's name. Use them only if the job description states them; otherwise return an empty string for that field and use a generic greeting.
 4. Never invent numbers or outcomes. You may reuse a metric the candidate already stated.
@@ -53,7 +58,7 @@ const SYSTEM_PROMPT = `You write concise, credible cover letters for technical r
 - First person ("I"), active voice, past tense for completed work.
 - Specific over generic: name the actual system, tool, or outcome from the candidate's profile rather than saying "various technologies".
 - No clichés: avoid "I am writing to express my interest", "perfect fit", "passionate about", "team player", "fast-paced environment", "wealth of experience".
-- Do not restate the resume line by line. Pick the two or three most relevant threads and explain why they matter for THIS role.
+- Do not restate the resume line by line. Pick the two or three strongest threads FROM THE RESUME and explain why they matter for THIS role.
 - No salary talk, no personal details, no flattery about the company's "exciting mission".
 - Do not include the date, addresses, or a signature block — the template adds those.
 
@@ -65,35 +70,33 @@ It must match this schema exactly:
 
 ${OUTPUT_SCHEMA}`;
 
-function buildUserPrompt({ profile, jobDescription, resumeType }) {
+// Takes the GENERATED RESUME rather than the raw profile: the letter should back
+// up the document the employer will actually read, and must not surface material
+// that was deliberately trimmed out of it.
+function buildUserPrompt({ resume, jobDescription, resumeType }) {
   const tone = TONE_RULES[resumeType] || TONE_RULES.max_match;
 
-  // Same restriction as the resume prompt: the model only receives the sections
-  // it is allowed to draw on. Contact details, dates and credentials are added
-  // by the template afterwards, so they cannot be garbled here.
-  const editableProfile = {
-    fullName: profile.personalInfo.fullName,
-    summary: profile.summary,
-    skills: profile.skills,
-    experience: profile.experience,
-    projects: profile.projects,
-    // Degree status is spelled out rather than left to be inferred, so an
-    // in-progress degree cannot be written up as one already earned.
-    education: (profile.education || []).map((e) => ({
+  const source = {
+    fullName: resume.personalInfo.fullName,
+    summary: resume.summary,
+    skills: resume.skills,
+    experience: resume.experience,
+    projects: resume.projects,
+    // Degree status is stated rather than left to be inferred, so an in-progress
+    // degree cannot be written up as one already earned.
+    education: (resume.education || []).map((e) => ({
       degree: e.degree,
       institution: e.institution,
-      status: /expect|present|current/i.test(e.endDate || '')
-        ? `IN PROGRESS — not yet earned (expected ${e.endDate})`
-        : 'completed',
+      status: e.completed ? 'completed — already earned' : `IN PROGRESS — not yet earned (expected ${e.endDate || 'later'})`,
     })),
-    certifications: (profile.certifications || []).map((c) => c.name),
+    certifications: (resume.certifications || []).map((c) => c.name),
   };
 
   return `${tone}
 
-=== CANDIDATE PROFILE (the only facts you may use) ===
+=== THE CANDIDATE'S TAILORED RESUME FOR THIS JOB (the only facts you may use) ===
 
-${JSON.stringify(editableProfile, null, 2)}
+${JSON.stringify(source, null, 2)}
 
 === TARGET JOB DESCRIPTION ===
 

@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS education (
   gpa          VARCHAR(20),
   start_date   VARCHAR(50),
   end_date     VARCHAR(50),
+  completed    TINYINT(1) NOT NULL DEFAULT 0,
   CONSTRAINT fk_education_profile FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

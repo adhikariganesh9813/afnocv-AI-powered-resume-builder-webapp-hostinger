@@ -1,5 +1,5 @@
 const PDFDocument = require('pdfkit');
-const { toUrl } = require('./resumeRender.service');
+const { toUrl, educationDates } = require('./resumeRender.service');
 
 // Builds the ATS template as a real text-based PDF (selectable/parseable text,
 // not an image). PDFKit is pure JavaScript, so this works on shared hosting
@@ -233,8 +233,7 @@ function drawResume(doc, resume, s) {
     (resume.education || []).forEach((e) => {
       L.splitLine(e.institution, e.location, { bold: true, rightBold: true });
       const degreeLine = [e.degree, e.gpa ? `GPA: ${e.gpa}` : null].filter(Boolean).join(' | ');
-      const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ');
-      L.splitLine(degreeLine, dates);
+      L.splitLine(degreeLine, educationDates(e));
       doc.y += 1.5 * s.space;
     });
     if (certs.length) L.labelledBullet('Certifications', certs.join(', '));
