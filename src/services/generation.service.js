@@ -24,6 +24,36 @@ function toStringArray(value) {
   return Array.isArray(value) ? value.filter((v) => typeof v === 'string' && v.trim()) : [];
 }
 
+// Fraction of words two passages share, ignoring case and punctuation.
+// 1 means the same words in the same quantities, 0 means nothing in common.
+// Deliberately crude: it only has to tell "reworded" from "barely touched".
+function wordSimilarity(a, b) {
+  const words = (text) =>
+    String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .split(' ')
+      .filter(Boolean);
+
+  const left = words(a);
+  const right = words(b);
+  if (!left.length || !right.length) return 0;
+
+  const remaining = new Map();
+  right.forEach((word) => remaining.set(word, (remaining.get(word) || 0) + 1));
+
+  let shared = 0;
+  left.forEach((word) => {
+    const count = remaining.get(word) || 0;
+    if (count > 0) {
+      shared += 1;
+      remaining.set(word, count - 1);
+    }
+  });
+
+  return shared / Math.max(left.length, right.length);
+}
+
 // Counts bullets that came back byte-identical to the profile.
 //
 // Compared bullet by bullet rather than array against array: the model often
@@ -34,6 +64,19 @@ function toStringArray(value) {
 function countUnchangedBullets(resume, profile) {
   let unchanged = 0;
   let total = 0;
+
+  // The summary counts as a rewritable item. It sits at the top of the page and
+  // is the first thing a reader compares between two resumes, so leaving it as
+  // the profile's own paragraph makes every tailoring level look identical even
+  // when the bullets underneath were rewritten properly.
+  //
+  // Judged by similarity rather than equality: an observed run changed "with a
+  // focus on" to "focusing on" and nothing else, which passes an equality test
+  // while reading as the same paragraph to anyone comparing two resumes.
+  if ((profile.summary || '').trim()) {
+    total += 1;
+    if (wordSimilarity(resume.summary, profile.summary) >= 0.85) unchanged += 1;
+  }
 
   const compare = (generatedEntry, profileEntry) => {
     (profileEntry.bullets || []).forEach((original, i) => {
@@ -229,9 +272,10 @@ async function generate(userId, { jobDescription, resumeType }) {
     resumeResponse = await askForResume(
       `YOUR PREVIOUS ATTEMPT FAILED: ${best.unchanged} of ${best.total} bullets came back word for word ` +
         'identical to the candidate\'s original text. That is only correct at level 1, and this ' +
-        'is not level 1. Rewrite EVERY bullet — including project bullets — so that not one of ' +
-        'them matches the original wording. Keep every fact exactly as given; change only how it ' +
-        'is worded. Rewriting is not fabricating.',
+        'is not level 1. Rewrite EVERY item — the professional summary and every experience ' +
+        'and project bullet — so that not one of them matches the original wording. The summary ' +
+        'in particular must be re-angled toward this posting, not repeated from the profile. ' +
+        'Keep every fact exactly as given; change only how it is worded. Rewriting is not fabricating.',
       attempt * 0.2
     );
 

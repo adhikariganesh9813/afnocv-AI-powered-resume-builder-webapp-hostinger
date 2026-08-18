@@ -37,7 +37,9 @@ Profile bullet:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
 Correct output:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
-The text is reproduced word for word. Anything else is wrong at this level.`,
+The text is reproduced word for word. Anything else is wrong at this level.
+
+The professional summary is likewise reproduced exactly as written.`,
 
   basic_match: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
@@ -45,7 +47,15 @@ Profile bullet:
 Correct output:
   "Automated specific data-processing tasks in Python, accelerating reporting and analysis."
 Same facts and same emphasis, just tighter and starting with a stronger verb.
-Returning the sentence unchanged is WRONG at this level — every bullet must be tightened.`,
+Returning the sentence unchanged is WRONG at this level — every bullet must be tightened.
+
+SUMMARY EXAMPLE
+Profile summary:
+  "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
+Correct output:
+  "M.S. Computer Science student with 2+ years building and customizing enterprise ERP software for a precision electronics manufacturer, focused on SQL Server database development and C#/VB.NET backend work."
+Tighter and re-ordered, same facts. Changing two or three words and keeping the rest
+is NOT enough — the sentences must actually be rebuilt.`,
 
   max_match: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
@@ -54,7 +64,16 @@ Job posting says: "Automate recurring data-processing and reporting workflows us
 Correct output:
   "Automated recurring data-processing and reporting workflows in Python, accelerating analysis for business stakeholders."
 The same work, re-expressed in the posting's language and led by the outcome.
-Returning the sentence unchanged is WRONG at this level — every bullet must be rewritten.`,
+Returning the sentence unchanged is WRONG at this level — every bullet must be rewritten.
+
+SUMMARY EXAMPLE
+Profile summary:
+  "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
+Job posting is for a Data Engineer building ETL pipelines with SQL and Python.
+Correct output:
+  "Software engineer with 2+ years building data integrations and SQL Server solutions in an enterprise ERP environment, including stored-procedure ETL work and Python automation. Currently completing an M.S. in Computer Science."
+Notice the summary now LEADS with what the posting cares about, and the degree moves
+to the end. Editing a couple of words of the original is NOT acceptable at this level.`,
 
   ultra_match: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
@@ -66,13 +85,22 @@ Every ATS-relevant term the candidate's real work supports is used, front-loaded
 "ETL" is absent only because this particular task was never described that way — that
 single omission is the whole extent of the restraint, and it did not stop the sentence
 being fully rewritten.
-Returning the sentence unchanged is WRONG at this level — this is the most aggressive rewriting level of the four.`,
+Returning the sentence unchanged is WRONG at this level — this is the most aggressive rewriting level of the four.
+
+SUMMARY EXAMPLE
+Profile summary:
+  "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
+Job posting is for a Data Engineer building ETL pipelines with SQL and Python.
+Correct output:
+  "Data-focused software engineer with 2+ years designing SQL Server schemas, stored-procedure ETL workflows and Python automation across finance, sales and manufacturing systems. Experienced integrating third-party APIs into enterprise platforms. Currently completing an M.S. in Computer Science."
+The summary is rebuilt from scratch around the posting's priorities. Reusing the
+profile's sentence structure and swapping a word or two is a FAILURE at this level.`,
 };
 
 // The shape we require back. Sent as part of the prompt because JSON mode
 // guarantees valid JSON, not a particular set of fields.
 const OUTPUT_SCHEMA = `{
-  "summary": "string - 2-4 sentence professional summary, rewritten for this posting",
+  "summary": "string - 2-4 sentence professional summary. At levels 2-4 this MUST be rewritten to lead with what this posting cares about; returning the profile's own summary unchanged is a failure. At level 1 reproduce it exactly.",
   "skills": {
     "categories": [
       { "name": "Programming Languages", "items": ["string", "..."] },
@@ -184,9 +212,10 @@ Other schema notes:
 
 === BEFORE YOU ANSWER ===
 
-Re-read the rewriting level at the top. Check each bullet you are about to return
-against it: at level 1 every bullet must match the profile exactly, and at levels
-2, 3 and 4 every bullet must differ from the profile. Then return the JSON.`;
+Re-read the rewriting level at the top. Check the professional summary and every
+bullet you are about to return against it: at level 1 they must all match the
+profile exactly, and at levels 2, 3 and 4 every one of them — the summary
+included — must differ from the profile's wording. Then return the JSON.`;
 }
 
 function buildUserPrompt({ profile, jobDescription, resumeType, extraInstruction }) {
