@@ -24,14 +24,37 @@ function toStringArray(value) {
   return Array.isArray(value) ? value.filter((v) => typeof v === 'string' && v.trim()) : [];
 }
 
-// The model can return valid JSON that still doesn't match our schema, so every
-// field is checked and normalised before it reaches the database or a template.
-// True when the model handed back the candidate's bullets untouched.
-function bulletsUnchanged(resume, profile) {
-  const key = (list) => JSON.stringify((list || []).map((e) => e.bullets));
-  return key(resume.experience) === key(profile.experience);
+// Counts bullets that came back byte-identical to the profile.
+//
+// Compared bullet by bullet rather than array against array: the model often
+// rewrites some bullets and leaves others alone, and a whole-array comparison
+// calls that "changed" — which let a resume through with its first, most visible
+// bullet untouched. Project bullets count too, and are matched by project name
+// because irrelevant projects may have been dropped.
+function countUnchangedBullets(resume, profile) {
+  let unchanged = 0;
+  let total = 0;
+
+  const compare = (generatedEntry, profileEntry) => {
+    (profileEntry.bullets || []).forEach((original, i) => {
+      total += 1;
+      const produced = generatedEntry && (generatedEntry.bullets || [])[i];
+      if (produced === original) unchanged += 1;
+    });
+  };
+
+  (profile.experience || []).forEach((entry, i) => compare((resume.experience || [])[i], entry));
+
+  (resume.projects || []).forEach((generated) => {
+    const original = (profile.projects || []).find((p) => p.name === generated.name);
+    if (original) compare(generated, original);
+  });
+
+  return { unchanged, total };
 }
 
+// The model can return valid JSON that still doesn't match our schema, so every
+// field is checked and normalised before it reaches the database or a template.
 function normalizeAiOutput(ai, profile, resumeType) {
   if (!ai || typeof ai !== 'object') {
     const err = new Error('The AI returned an unexpected response. Please try again.');
@@ -191,15 +214,40 @@ async function generate(userId, { jobDescription, resumeType }) {
   // directly and a higher temperature: repeating the same request at the same
   // temperature risks landing on the same "safe copy" response again, since that
   // response is what the model considers safest at that setting.
-  for (let attempt = 1; resumeType !== 'natural' && bulletsUnchanged(resume, profile) && attempt <= 2; attempt++) {
-    console.warn(`Generation: ${resumeType} returned unmodified bullets; retrying (attempt ${attempt}).`);
+  // The best attempt is kept, not the most recent one. Each retry raises the
+  // temperature, which makes a later attempt genuinely capable of being worse
+  // than an earlier one — an observed run went 7/7 unchanged, then 2/7, then
+  // back to 4/7, and shipping "last" would have thrown away the good middle
+  // result. Tracking the minimum means retrying can only ever help.
+  let best = { resume, ...countUnchangedBullets(resume, profile) };
+
+  for (let attempt = 1; attempt <= 2 && resumeType !== 'natural' && best.unchanged > 0; attempt += 1) {
+    console.warn(
+      `Generation: ${resumeType} left ${best.unchanged}/${best.total} bullets unchanged; retrying (attempt ${attempt}).`
+    );
+
     resumeResponse = await askForResume(
-      'YOUR PREVIOUS ATTEMPT FAILED: you returned the profile bullets word for word. ' +
-        'That is only correct at level 1. Rewrite EVERY bullet this time — same facts, ' +
-        'different wording — as the tailoring level at the top requires.',
+      `YOUR PREVIOUS ATTEMPT FAILED: ${best.unchanged} of ${best.total} bullets came back word for word ` +
+        'identical to the candidate\'s original text. That is only correct at level 1, and this ' +
+        'is not level 1. Rewrite EVERY bullet — including project bullets — so that not one of ' +
+        'them matches the original wording. Keep every fact exactly as given; change only how it ' +
+        'is worded. Rewriting is not fabricating.',
       attempt * 0.2
     );
-    resume = normalizeAiOutput(resumeResponse.json, profile, resumeType);
+
+    const candidate = normalizeAiOutput(resumeResponse.json, profile, resumeType);
+    const score = countUnchangedBullets(candidate, profile);
+    if (score.unchanged < best.unchanged) best = { resume: candidate, ...score };
+  }
+
+  resume = best.resume;
+
+  if (resumeType !== 'natural' && best.unchanged > 0) {
+    // Retries exhausted. The resume is still valid and factual, just less
+    // tailored than asked for, so it ships rather than failing the request.
+    console.warn(
+      `Generation: ${resumeType} still has ${best.unchanged}/${best.total} original bullets after retries.`
+    );
   }
 
   const letterResponse = await deepseek.chatJson({
