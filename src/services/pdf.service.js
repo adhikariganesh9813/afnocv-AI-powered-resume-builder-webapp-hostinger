@@ -147,6 +147,43 @@ function drawRuns(doc, pieces, startX, y, fontSize) {
   return x;
 }
 
+// Splits a run into the smallest pieces it may be broken between.
+//
+// Ordinary text breaks at spaces. A URL has none, so it is broken after each
+// "/" (the convention browsers use) — that keeps the whole address readable
+// instead of truncating it. A segment still too long for one line is finally
+// broken by character, so nothing can overflow.
+function tokensFor(doc, piece, maxWidth, fontSize) {
+  const text = String(piece.text);
+
+  // Whitespace is tokenised separately rather than folded into the adjacent
+  // word, so a run beginning with a space (like " | ") keeps it.
+  if (!piece.url) return text.match(/\s+|\S+/g) || [];
+
+  doc.fontSize(fontSize).font(FONT);
+  const segments = text.match(/[^/]*\/|[^/]+$/g) || [text];
+  const tokens = [];
+
+  segments.forEach((segment) => {
+    if (doc.widthOfString(segment) <= maxWidth) {
+      tokens.push(segment);
+      return;
+    }
+    let current = '';
+    for (const char of segment) {
+      if (current && doc.widthOfString(current + char) > maxWidth) {
+        tokens.push(current);
+        current = char;
+      } else {
+        current += char;
+      }
+    }
+    if (current) tokens.push(current);
+  });
+
+  return tokens;
+}
+
 // Flows a row of styled runs across as many lines as it needs, breaking at word
 // boundaries. Used for the project header, where a long name plus a long tech
 // list overflows a single line. Links are annotated per drawn segment, so a
@@ -159,9 +196,7 @@ function drawWrappedRuns(doc, pieces, x0, y0, maxWidth, fontSize, lineHeight) {
   let y = y0;
 
   pieces.forEach((piece) => {
-    // Whitespace is tokenised separately rather than folded into the adjacent
-    // word, so a run beginning with a space (like " | ") keeps it.
-    const tokens = String(piece.text).match(/\s+|\S+/g) || [];
+    const tokens = tokensFor(doc, piece, maxWidth, fontSize);
 
     tokens.forEach((token) => {
       // A space that lands at the start of a wrapped line would indent it.
@@ -199,27 +234,6 @@ function drawWrappedRuns(doc, pieces, x0, y0, maxWidth, fontSize, lineHeight) {
   return y + lineHeight;
 }
 
-// A URL is a single unbreakable token, so wrapping alone cannot save it — the
-// displayed text is shortened until it is at most a third of the line. The
-// annotation still points at the full URL.
-function shortenLinkToFit(doc, pieces, maxWidth, fontSize) {
-  const index = pieces.findIndex((p) => p.url);
-  if (index === -1) return pieces;
-
-  doc.fontSize(fontSize).font(FONT);
-  const original = pieces[index].text;
-  if (doc.widthOfString(original) <= maxWidth) return pieces;
-
-  for (let length = original.length - 1; length >= 14; length -= 1) {
-    const trial = `${original.slice(0, length)}...`;
-    if (doc.widthOfString(trial) <= maxWidth) {
-      return pieces.map((p, i) => (i === index ? { ...p, text: trial } : p));
-    }
-  }
-
-  return pieces.map((p, i) => (i === index ? { ...p, text: `${original.slice(0, 14)}...` } : p));
-}
-
 function runsWidth(doc, pieces, fontSize) {
   doc.fontSize(fontSize);
   return pieces.reduce((sum, piece) => {
@@ -228,20 +242,32 @@ function runsWidth(doc, pieces, fontSize) {
   }, 0);
 }
 
-// Centres a row of runs, inserting separators between them.
+// Centres a row of runs, inserting separators between them. If the row is too
+// wide for the page each entry gets its own centred line, so contact URLs are
+// shown in full rather than shortened.
 function centeredRuns(doc, pieces, s, y) {
   const fontSize = s.body * 0.95;
-  const withSeparators = [];
+  const maxWidth = doc.page.width - s.margin * 2;
 
+  const joined = [];
   pieces.forEach((piece, i) => {
-    if (i > 0) withSeparators.push({ text: '  |  ' });
-    withSeparators.push(piece);
+    if (i > 0) joined.push({ text: '  |  ' });
+    joined.push(piece);
   });
 
-  const fitted = shortenLinkToFit(doc, withSeparators, (doc.page.width - s.margin * 2) / 2, fontSize);
-  const total = runsWidth(doc, fitted, fontSize);
-  drawRuns(doc, fitted, (doc.page.width - total) / 2, y, fontSize);
-  return y + s.body * 1.25;
+  if (runsWidth(doc, joined, fontSize) <= maxWidth) {
+    const total = runsWidth(doc, joined, fontSize);
+    drawRuns(doc, joined, (doc.page.width - total) / 2, y, fontSize);
+    return y + s.body * 1.25;
+  }
+
+  let lineY = y;
+  pieces.forEach((piece) => {
+    const width = runsWidth(doc, [piece], fontSize);
+    drawRuns(doc, [piece], Math.max(s.margin, (doc.page.width - width) / 2), lineY, fontSize);
+    lineY += s.body * 1.25;
+  });
+  return lineY;
 }
 
 function drawResume(doc, resume, s) {
@@ -332,11 +358,11 @@ function drawResume(doc, resume, s) {
         pieces.push({ text: ')' });
       }
 
-      // A URL gets at most a third of the line; everything else wraps.
-      const fitted = shortenLinkToFit(doc, pieces, L.width() / 3, s.body);
+      // URLs are shown in full — drawWrappedRuns breaks them after "/" if a
+      // line runs out, so nothing is truncated and nothing overflows.
       const lineHeight = s.body + 2.5 * s.space;
       L.ensureSpace(lineHeight * 2);
-      doc.y = drawWrappedRuns(doc, fitted, L.M, doc.y, L.width(), s.body, lineHeight);
+      doc.y = drawWrappedRuns(doc, pieces, L.M, doc.y, L.width(), s.body, lineHeight);
 
       (pr.bullets || []).forEach((b) => L.bullet(b));
       doc.y += 2 * s.space;
