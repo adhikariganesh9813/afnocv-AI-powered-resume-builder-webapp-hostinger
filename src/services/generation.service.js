@@ -275,7 +275,9 @@ async function generate(userId, { jobDescription, resumeType }) {
         'is not level 1. Rewrite EVERY item — the professional summary and every experience ' +
         'and project bullet — so that not one of them matches the original wording. The summary ' +
         'in particular must be re-angled toward this posting, not repeated from the profile. ' +
-        'Keep every fact exactly as given; change only how it is worded. Rewriting is not fabricating.',
+        'Keep every fact exactly as given; change only how it is worded. Rewriting is not fabricating. ' +
+        'If a bullet already reads well, rewrite it anyway — "it was already good" is not a valid ' +
+        'reason to return it unchanged at this level.',
       attempt * 0.2
     );
 

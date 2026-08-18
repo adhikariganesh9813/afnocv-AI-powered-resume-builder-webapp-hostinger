@@ -11,11 +11,14 @@ const RESUME_TYPE_RULES = {
 - Your only real work at this level is selecting which optional items are relevant enough to include (see SELECTING WHAT TO INCLUDE).`,
 
   basic_match: `TAILORING LEVEL 2 of 4 — BASIC MATCH (light polish).
-- Lightly tighten each bullet: a stronger opening verb, remove filler words. Keep the same facts, the same emphasis, and roughly the same length.
-- Where the candidate ALREADY has a skill or tool the posting names, you may switch to the posting's term for it (their "MS SQL" -> "SQL Server" if the posting says SQL Server).
-- Do not restructure a bullet or shift what it emphasises.`,
+- EVERY bullet must be re-expressed. The candidate's bullets are already competent prose — that is NOT a reason to return one unchanged. "It was already fine" is the single most common failure at this level.
+- For each bullet: change the opening verb, vary the sentence structure, or move its most job-relevant detail to the front. One of those, at minimum, on every bullet.
+- Keep the same facts, the same emphasis and roughly the same length.
+- Where the candidate ALREADY has a skill or tool the posting names, switch to the posting's term for it (their "MS SQL" -> "SQL Server" if the posting says SQL Server).
+- Aim for: the same bullet, written by the same person on a different day. Recognisably the same content, demonstrably not the same sentence.`,
 
   max_match: `TAILORING LEVEL 3 of 4 — MAX MATCH (substantial rewriting).
+- EVERY bullet must be rewritten. A bullet that already reads well still gets rewritten — "it was already good" is not an exemption.
 - Rewrite each bullet to lead with its outcome and mirror the posting's language and priorities, while describing the exact same work the candidate actually did.
 - Emphasise the parts of each role that map to the posting's stated responsibilities; compress the parts that do not.
 - Reuse the posting's exact terminology wherever the candidate's real experience genuinely maps onto it.`,
