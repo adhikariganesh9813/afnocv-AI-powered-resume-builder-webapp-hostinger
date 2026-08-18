@@ -5,6 +5,13 @@ const resumePrompt = require('../prompts/resume.prompt');
 const coverLetterPrompt = require('../prompts/coverLetter.prompt');
 
 const RESUME_TYPES = ['natural', 'basic_match', 'max_match', 'ultra_match'];
+
+const RESUME_TYPE_TEMPERATURE = {
+  natural: 0,
+  basic_match: 0.2,
+  max_match: 0.4,
+  ultra_match: 0.5,
+};
 const SKILL_CATEGORIES = ['Programming Languages', 'Frameworks/Tools'];
 
 function badRequest(message) {
@@ -19,7 +26,13 @@ function toStringArray(value) {
 
 // The model can return valid JSON that still doesn't match our schema, so every
 // field is checked and normalised before it reaches the database or a template.
-function normalizeAiOutput(ai, profile) {
+// True when the model handed back the candidate's bullets untouched.
+function bulletsUnchanged(resume, profile) {
+  const key = (list) => JSON.stringify((list || []).map((e) => e.bullets));
+  return key(resume.experience) === key(profile.experience);
+}
+
+function normalizeAiOutput(ai, profile, resumeType) {
   if (!ai || typeof ai !== 'object') {
     const err = new Error('The AI returned an unexpected response. Please try again.');
     err.status = 502;
@@ -60,7 +73,13 @@ function normalizeAiOutput(ai, profile) {
 
   // Experience and projects are matched back to the profile by position so the
   // AI cannot add, drop, or reattribute a role — only its bullets are taken.
+  // At "natural" the contract is that wording is untouched, so the profile's own
+  // bullets are used directly. Enforcing it here rather than asking the model to
+  // copy makes the level exact instead of merely likely.
+  const keepOriginalWording = resumeType === 'natural';
+
   const experience = profile.experience.map((original, i) => {
+    if (keepOriginalWording) return { ...original };
     const generated = Array.isArray(ai.experience) ? ai.experience[i] : null;
     const bullets = generated ? toStringArray(generated.bullets) : [];
     return { ...original, bullets: bullets.length ? bullets : original.bullets };
@@ -69,7 +88,7 @@ function normalizeAiOutput(ai, profile) {
   const projects = profile.projects
     .map((original, i) => {
       const generated = Array.isArray(ai.projects) ? ai.projects[i] : null;
-      const bullets = generated ? toStringArray(generated.bullets) : [];
+      const bullets = keepOriginalWording ? [] : generated ? toStringArray(generated.bullets) : [];
       // Only technologies the profile already lists are allowed through.
       const techFromAi = generated ? toStringArray(generated.technologies) : [];
       const allowed = techFromAi.filter((t) =>
@@ -153,15 +172,35 @@ async function generate(userId, { jobDescription, resumeType }) {
   // it argues for the document the employer will actually read and never raises
   // material that was trimmed out of it. Costs roughly double the wall-clock time
   // of running both at once, which is the price of the two staying consistent.
-  const resumeResponse = await deepseek.chatJson({
-    system: resumePrompt.SYSTEM_PROMPT,
-    user: resumePrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType }),
-    // Low but non-zero: tailoring needs some flexibility of phrasing, while
-    // staying well away from the creativity that invites invented facts.
-    temperature: 0.3,
-  });
+  const askForResume = (extraInstruction, temperatureBoost = 0) =>
+    deepseek.chatJson({
+      system: resumePrompt.buildSystemPrompt(resumeType),
+      user: resumePrompt.buildUserPrompt({ profile, jobDescription: jd, resumeType, extraInstruction }),
+      // Sampling follows the level: "natural" is a copying task and wants none,
+      // while heavier rewriting needs enough latitude to find new phrasing. All
+      // stay well below the range where invented facts start appearing.
+      temperature: Math.min(RESUME_TYPE_TEMPERATURE[resumeType] + temperatureBoost, 0.8),
+    });
 
-  const resume = normalizeAiOutput(resumeResponse.json, profile);
+  let resumeResponse = await askForResume();
+  let resume = normalizeAiOutput(resumeResponse.json, profile, resumeType);
+
+  // Levels above "natural" promise rewritten wording, but the model sometimes
+  // plays safe and echoes the profile back — the stricter the anti-fabrication
+  // rules, the likelier that is. Up to two retries, each with the failure named
+  // directly and a higher temperature: repeating the same request at the same
+  // temperature risks landing on the same "safe copy" response again, since that
+  // response is what the model considers safest at that setting.
+  for (let attempt = 1; resumeType !== 'natural' && bulletsUnchanged(resume, profile) && attempt <= 2; attempt++) {
+    console.warn(`Generation: ${resumeType} returned unmodified bullets; retrying (attempt ${attempt}).`);
+    resumeResponse = await askForResume(
+      'YOUR PREVIOUS ATTEMPT FAILED: you returned the profile bullets word for word. ' +
+        'That is only correct at level 1. Rewrite EVERY bullet this time — same facts, ' +
+        'different wording — as the tailoring level at the top requires.',
+      attempt * 0.2
+    );
+    resume = normalizeAiOutput(resumeResponse.json, profile, resumeType);
+  }
 
   const letterResponse = await deepseek.chatJson({
     system: coverLetterPrompt.SYSTEM_PROMPT,

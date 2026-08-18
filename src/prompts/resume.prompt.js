@@ -21,10 +21,52 @@ const RESUME_TYPE_RULES = {
 - Reuse the posting's exact terminology wherever the candidate's real experience genuinely maps onto it.`,
 
   ultra_match: `TAILORING LEVEL 4 of 4 — ULTRA MATCH (maximum keyword alignment for ATS).
-- Rewrite bullets to carry as many of the posting's genuine keywords as the candidate's real experience honestly supports.
-- Mirror the posting's phrasing closely, including its exact tool, method and process names, wherever they truthfully describe the candidate's work.
-- Front-load each bullet with the most ATS-relevant term.
-- Aggressive rewording is expected — but the underlying facts must remain exactly what the candidate reported. Keyword stuffing that implies experience the candidate does not have is a failure, not a success.`,
+- EVERY bullet must be rewritten. Returning any bullet in its original wording is a failure at this level.
+- Open each bullet with the posting's most relevant term, and carry as many of the posting's genuine keywords as the candidate's real work supports.
+- Mirror the posting's phrasing, including its exact tool, method and process names, wherever they truthfully describe what the candidate did.
+- The facts stay identical; only the wording changes. Rewriting is not the same as fabricating, and caution about the latter is never a reason to skip the former.
+- If a keyword is not supported by the candidate's work, simply leave that keyword out and report it in "keywordsMissing" — do not let it hold back the rewriting of everything else.`,
+};
+
+// One worked example per level, using the same source bullet. Showing the model
+// what the output should look like is far more reliable than describing it —
+// without this, levels 2 and 4 both collapsed back to copying the original.
+const RESUME_TYPE_EXAMPLES = {
+  natural: `EXAMPLE FOR THIS LEVEL
+Profile bullet:
+  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
+Correct output:
+  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
+The text is reproduced word for word. Anything else is wrong at this level.`,
+
+  basic_match: `EXAMPLE FOR THIS LEVEL
+Profile bullet:
+  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
+Correct output:
+  "Automated specific data-processing tasks in Python, accelerating reporting and analysis."
+Same facts and same emphasis, just tighter and starting with a stronger verb.
+Returning the sentence unchanged is WRONG at this level — every bullet must be tightened.`,
+
+  max_match: `EXAMPLE FOR THIS LEVEL
+Profile bullet:
+  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
+Job posting says: "Automate recurring data-processing and reporting workflows using Python"
+Correct output:
+  "Automated recurring data-processing and reporting workflows in Python, accelerating analysis for business stakeholders."
+The same work, re-expressed in the posting's language and led by the outcome.
+Returning the sentence unchanged is WRONG at this level — every bullet must be rewritten.`,
+
+  ultra_match: `EXAMPLE FOR THIS LEVEL
+Profile bullet:
+  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
+Job posting says: "Automate recurring data-processing and reporting workflows using Python", "ETL/ELT pipelines"
+Correct output:
+  "Built Python automation for recurring data-processing and reporting workflows, accelerating downstream analysis and reporting."
+Every ATS-relevant term the candidate's real work supports is used, front-loaded.
+"ETL" is absent only because this particular task was never described that way — that
+single omission is the whole extent of the restraint, and it did not stop the sentence
+being fully rewritten.
+Returning the sentence unchanged is WRONG at this level — this is the most aggressive rewriting level of the four.`,
 };
 
 // The shape we require back. Sent as part of the prompt because JSON mode
@@ -60,9 +102,23 @@ const OUTPUT_SCHEMA = `{
   "keywordsMissing": ["string - important job description terms the candidate has no basis to claim"]
 }`;
 
-const SYSTEM_PROMPT = `You are an expert resume writer specialising in ATS-optimised technical resumes.
+function buildSystemPrompt(resumeType) {
+  const level = RESUME_TYPE_RULES[resumeType] || RESUME_TYPE_RULES.max_match;
+  const example = RESUME_TYPE_EXAMPLES[resumeType] || RESUME_TYPE_EXAMPLES.max_match;
+
+  return `You are an expert resume writer specialising in ATS-optimised technical resumes.
 
 You rewrite a candidate's existing resume so it speaks directly to one specific job posting.
+
+=== HOW MUCH TO REWRITE (the single most important instruction) ===
+
+${level}
+
+${example}
+
+The rules below protect the candidate's facts. They never excuse ignoring the
+rewriting level above: rephrasing real facts is always allowed, and at levels 2-4 it
+is required.
 
 === ABSOLUTE RULES — violating any of these makes the output unusable ===
 
@@ -124,9 +180,16 @@ Other schema notes:
 - Include every role from the profile's experience array.
 - Include an entry for every project, each with its "include" flag set.
 - Both skill categories must be present, even if one ends up with few items.
-- "keywordsMissing" is important and useful — be honest there. It tells the candidate what genuine gaps exist.`;
+- "keywordsMissing" is important and useful — be honest there. It tells the candidate what genuine gaps exist.
 
-function buildUserPrompt({ profile, jobDescription, resumeType }) {
+=== BEFORE YOU ANSWER ===
+
+Re-read the rewriting level at the top. Check each bullet you are about to return
+against it: at level 1 every bullet must match the profile exactly, and at levels
+2, 3 and 4 every bullet must differ from the profile. Then return the JSON.`;
+}
+
+function buildUserPrompt({ profile, jobDescription, resumeType, extraInstruction }) {
   const rules = RESUME_TYPE_RULES[resumeType] || RESUME_TYPE_RULES.max_match;
 
   // Only the sections the model is allowed to rewrite are sent. Education,
@@ -180,9 +243,9 @@ ${jobDescription}
 
 === TASK ===
 
-Rewrite the candidate's summary, skills ordering, experience bullets, and project bullets for this specific posting, following the tailoring level above and every absolute rule.
-
+Rewrite the candidate's summary, skills, experience bullets, and project bullets for this specific posting, following the tailoring level above and every absolute rule.
+${extraInstruction ? `\n!!! ${extraInstruction}\n` : ''}
 Return the JSON object now.`;
 }
 
-module.exports = { SYSTEM_PROMPT, buildUserPrompt, RESUME_TYPE_RULES };
+module.exports = { buildSystemPrompt, buildUserPrompt, RESUME_TYPE_RULES };
