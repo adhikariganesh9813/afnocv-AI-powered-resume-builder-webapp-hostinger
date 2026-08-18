@@ -147,21 +147,74 @@ function drawRuns(doc, pieces, startX, y, fontSize) {
   return x;
 }
 
-// Runs are drawn on a single line without wrapping, so a long URL would print
-// past the right margin. The displayed link text is shortened until the row
-// fits; the annotation still points at the full URL.
-function shortenLinkToFit(doc, pieces, maxWidth, fontSize) {
-  if (runsWidth(doc, pieces, fontSize) <= maxWidth) return pieces;
+// Flows a row of styled runs across as many lines as it needs, breaking at word
+// boundaries. Used for the project header, where a long name plus a long tech
+// list overflows a single line. Links are annotated per drawn segment, so a
+// wrapped link stays clickable on every line it occupies.
+function drawWrappedRuns(doc, pieces, x0, y0, maxWidth, fontSize, lineHeight) {
+  doc.fontSize(fontSize);
 
+  const fontFor = (piece) => (piece.bold ? FONT_BOLD : piece.italic ? FONT_ITALIC : FONT);
+  let x = x0;
+  let y = y0;
+
+  pieces.forEach((piece) => {
+    // Whitespace is tokenised separately rather than folded into the adjacent
+    // word, so a run beginning with a space (like " | ") keeps it.
+    const tokens = String(piece.text).match(/\s+|\S+/g) || [];
+
+    tokens.forEach((token) => {
+      // A space that lands at the start of a wrapped line would indent it.
+      if (/^\s+$/.test(token) && x === x0) return;
+
+      doc.font(fontFor(piece));
+      const tokenWidth = doc.widthOfString(token);
+
+      if (x > x0 && x + tokenWidth > x0 + maxWidth) {
+        x = x0;
+        y += lineHeight;
+        if (/^\s+$/.test(token)) return;
+      }
+
+      doc.fillColor(piece.url ? LINK_COLOR : '#000');
+      doc.text(token, x, y, { lineBreak: false });
+
+      if (piece.url) {
+        const visible = doc.widthOfString(token.replace(/\s+$/, ''));
+        const underlineY = y + fontSize * 1.02;
+        doc
+          .moveTo(x, underlineY)
+          .lineTo(x + visible, underlineY)
+          .lineWidth(0.4)
+          .strokeColor(LINK_COLOR)
+          .stroke();
+        doc.link(x, y, visible, fontSize * 1.15, piece.url);
+      }
+
+      x += tokenWidth;
+    });
+  });
+
+  doc.fillColor('#000');
+  return y + lineHeight;
+}
+
+// A URL is a single unbreakable token, so wrapping alone cannot save it — the
+// displayed text is shortened until it is at most a third of the line. The
+// annotation still points at the full URL.
+function shortenLinkToFit(doc, pieces, maxWidth, fontSize) {
   const index = pieces.findIndex((p) => p.url);
   if (index === -1) return pieces;
 
+  doc.fontSize(fontSize).font(FONT);
   const original = pieces[index].text;
+  if (doc.widthOfString(original) <= maxWidth) return pieces;
+
   for (let length = original.length - 1; length >= 14; length -= 1) {
-    const trial = pieces.map((p, i) =>
-      i === index ? { ...p, text: `${original.slice(0, length)}...` } : p
-    );
-    if (runsWidth(doc, trial, fontSize) <= maxWidth) return trial;
+    const trial = `${original.slice(0, length)}...`;
+    if (doc.widthOfString(trial) <= maxWidth) {
+      return pieces.map((p, i) => (i === index ? { ...p, text: trial } : p));
+    }
   }
 
   return pieces.map((p, i) => (i === index ? { ...p, text: `${original.slice(0, 14)}...` } : p));
@@ -185,7 +238,7 @@ function centeredRuns(doc, pieces, s, y) {
     withSeparators.push(piece);
   });
 
-  const fitted = shortenLinkToFit(doc, withSeparators, doc.page.width - s.margin * 2, fontSize);
+  const fitted = shortenLinkToFit(doc, withSeparators, (doc.page.width - s.margin * 2) / 2, fontSize);
   const total = runsWidth(doc, fitted, fontSize);
   drawRuns(doc, fitted, (doc.page.width - total) / 2, y, fontSize);
   return y + s.body * 1.25;
@@ -279,8 +332,11 @@ function drawResume(doc, resume, s) {
         pieces.push({ text: ')' });
       }
 
-      drawRuns(doc, shortenLinkToFit(doc, pieces, L.width(), s.body), L.M, doc.y, s.body);
-      doc.y += s.body + 2.5 * s.space;
+      // A URL gets at most a third of the line; everything else wraps.
+      const fitted = shortenLinkToFit(doc, pieces, L.width() / 3, s.body);
+      const lineHeight = s.body + 2.5 * s.space;
+      L.ensureSpace(lineHeight * 2);
+      doc.y = drawWrappedRuns(doc, fitted, L.M, doc.y, L.width(), s.body, lineHeight);
 
       (pr.bullets || []).forEach((b) => L.bullet(b));
       doc.y += 2 * s.space;
