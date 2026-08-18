@@ -4,91 +4,64 @@
 // How aggressively the model may rewrite. This is the only thing that changes
 // between the four resume types the dashboard offers.
 const RESUME_TYPE_RULES = {
-  natural: `TAILORING LEVEL 1 of 4 — NATURAL (no rewriting at all).
-- Reproduce every bullet EXACTLY as the candidate wrote it. Copy the text character for character.
+  natural: `TAILORING LEVEL 1 of 3 — NATURAL (no rewriting at all).
+- Reproduce every bullet EXACTLY as the candidate wrote it, character for character.
+- Reproduce the professional summary exactly as written.
 - The only permitted change is fixing an outright spelling or punctuation error.
-- Do NOT reword, tighten, shorten, combine, or re-emphasise anything. Do NOT introduce any vocabulary from the job description.
-- Your only real work at this level is selecting which optional items are relevant enough to include (see SELECTING WHAT TO INCLUDE).`,
+- Your only work at this level is choosing which optional items are relevant enough to include (see SELECTING WHAT TO INCLUDE).`,
 
-  basic_match: `TAILORING LEVEL 2 of 4 — BASIC MATCH (light polish).
-- EVERY bullet must be re-expressed. The candidate's bullets are already competent prose — that is NOT a reason to return one unchanged. "It was already fine" is the single most common failure at this level.
-- For each bullet: change the opening verb, vary the sentence structure, or move its most job-relevant detail to the front. One of those, at minimum, on every bullet.
-- Keep the same facts, the same emphasis and roughly the same length.
-- Where the candidate ALREADY has a skill or tool the posting names, switch to the posting's term for it (their "MS SQL" -> "SQL Server" if the posting says SQL Server).
-- Aim for: the same bullet, written by the same person on a different day. Recognisably the same content, demonstrably not the same sentence.`,
+  basic_match: `TAILORING LEVEL 2 of 3 — BASIC MATCH (genuine rewriting, moderate alignment).
+- EVERY bullet and the summary must be rewritten. The candidate's writing is already competent — that is NOT a reason to return anything unchanged. "It was already fine" is the most common failure at this level.
+- Rewrite each bullet so it speaks to this posting: lead with the part of the work the posting cares about, and use the posting's terminology wherever the candidate genuinely has that experience.
+- Keep the same facts, roughly the same length, and the same overall emphasis of the role.
+- This is real tailoring, not proofreading. A reader comparing this against the original should see every sentence rebuilt around the job.`,
 
-  max_match: `TAILORING LEVEL 3 of 4 — MAX MATCH (substantial rewriting).
-- EVERY bullet must be rewritten. A bullet that already reads well still gets rewritten — "it was already good" is not an exemption.
-- Rewrite each bullet to lead with its outcome and mirror the posting's language and priorities, while describing the exact same work the candidate actually did.
-- Emphasise the parts of each role that map to the posting's stated responsibilities; compress the parts that do not.
-- Reuse the posting's exact terminology wherever the candidate's real experience genuinely maps onto it.`,
-
-  ultra_match: `TAILORING LEVEL 4 of 4 — ULTRA MATCH (maximum keyword alignment for ATS).
-- EVERY bullet must be rewritten. Returning any bullet in its original wording is a failure at this level.
-- Open each bullet with the posting's most relevant term, and carry as many of the posting's genuine keywords as the candidate's real work supports.
-- Mirror the posting's phrasing, including its exact tool, method and process names, wherever they truthfully describe what the candidate did.
-- The facts stay identical; only the wording changes. Rewriting is not the same as fabricating, and caution about the latter is never a reason to skip the former.
-- If a keyword is not supported by the candidate's work, simply leave that keyword out and report it in "keywordsMissing" — do not let it hold back the rewriting of everything else.`,
+  max_match: `TAILORING LEVEL 3 of 3 — MAX MATCH (maximum alignment; the strongest level available).
+- EVERY bullet and the summary must be rewritten, with no exceptions. An already-good sentence still gets rewritten.
+- Rewrite each bullet to open with the posting's most relevant term, lead with the outcome, and carry as many of the posting's genuine keywords as the candidate's real work honestly supports.
+- Mirror the posting's phrasing closely — its exact tool, method and process names — wherever they truthfully describe what the candidate did.
+- Emphasise the parts of each role that map to the posting's stated responsibilities and compress the parts that do not.
+- The facts stay identical; only the wording changes. Rewriting is not fabricating, and caution about the latter is never a reason to skip the former.
+- If a keyword is not supported by the candidate's work, leave it out and report it in "keywordsMissing" — never let one missing keyword hold back the rewriting of everything else.`,
 };
 
-// One worked example per level, using the same source bullet. Showing the model
-// what the output should look like is far more reliable than describing it —
-// without this, levels 2 and 4 both collapsed back to copying the original.
+// One worked example per level, using the same source material. Showing the model
+// what the output should look like is far more reliable than describing it — the
+// levels collapsed back into copying the original until these were added.
 const RESUME_TYPE_EXAMPLES = {
   natural: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
 Correct output:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
-The text is reproduced word for word. Anything else is wrong at this level.
-
-The professional summary is likewise reproduced exactly as written.`,
+Reproduced word for word. The professional summary is likewise reproduced exactly.
+Anything else is wrong at this level.`,
 
   basic_match: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
+Job posting says: "Automate recurring data-processing and reporting workflows using Python"
 Correct output:
-  "Automated specific data-processing tasks in Python, accelerating reporting and analysis."
-Same facts and same emphasis, just tighter and starting with a stronger verb.
-Returning the sentence unchanged is WRONG at this level — every bullet must be tightened.
+  "Automated recurring data-processing and reporting tasks in Python, accelerating downstream analysis."
+The same facts, rebuilt around the posting's wording and led by the relevant work.
 
 SUMMARY EXAMPLE
 Profile summary:
   "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
 Correct output:
-  "M.S. Computer Science student with 2+ years building and customizing enterprise ERP software for a precision electronics manufacturer, focused on SQL Server database development and C#/VB.NET backend work."
-Tighter and re-ordered, same facts. Changing two or three words and keeping the rest
-is NOT enough — the sentences must actually be rebuilt.`,
+  "Software engineer with 2+ years building SQL Server solutions and data integrations inside an enterprise ERP environment, including stored-procedure ETL work and Python automation. Currently completing an M.S. in Computer Science."
+Changing two or three words and keeping the rest is NOT enough — the sentences must actually be rebuilt.`,
 
   max_match: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
-Job posting says: "Automate recurring data-processing and reporting workflows using Python"
-Correct output:
-  "Automated recurring data-processing and reporting workflows in Python, accelerating analysis for business stakeholders."
-The same work, re-expressed in the posting's language and led by the outcome.
-Returning the sentence unchanged is WRONG at this level — every bullet must be rewritten.
-
-SUMMARY EXAMPLE
-Profile summary:
-  "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
-Job posting is for a Data Engineer building ETL pipelines with SQL and Python.
-Correct output:
-  "Software engineer with 2+ years building data integrations and SQL Server solutions in an enterprise ERP environment, including stored-procedure ETL work and Python automation. Currently completing an M.S. in Computer Science."
-Notice the summary now LEADS with what the posting cares about, and the degree moves
-to the end. Editing a couple of words of the original is NOT acceptable at this level.`,
-
-  ultra_match: `EXAMPLE FOR THIS LEVEL
-Profile bullet:
-  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
 Job posting says: "Automate recurring data-processing and reporting workflows using Python", "ETL/ELT pipelines"
 Correct output:
-  "Built Python automation for recurring data-processing and reporting workflows, accelerating downstream analysis and reporting."
+  "Built Python automation for recurring data-processing and reporting workflows, accelerating downstream analysis and reporting for business stakeholders."
 Every ATS-relevant term the candidate's real work supports is used, front-loaded.
 "ETL" is absent only because this particular task was never described that way — that
 single omission is the whole extent of the restraint, and it did not stop the sentence
 being fully rewritten.
-Returning the sentence unchanged is WRONG at this level — this is the most aggressive rewriting level of the four.
 
 SUMMARY EXAMPLE
 Profile summary:
@@ -96,8 +69,8 @@ Profile summary:
 Job posting is for a Data Engineer building ETL pipelines with SQL and Python.
 Correct output:
   "Data-focused software engineer with 2+ years designing SQL Server schemas, stored-procedure ETL workflows and Python automation across finance, sales and manufacturing systems. Experienced integrating third-party APIs into enterprise platforms. Currently completing an M.S. in Computer Science."
-The summary is rebuilt from scratch around the posting's priorities. Reusing the
-profile's sentence structure and swapping a word or two is a FAILURE at this level.`,
+Rebuilt from scratch around the posting's priorities. Reusing the profile's sentence
+structure and swapping a word or two is a FAILURE at this level.`,
 };
 
 // The shape we require back. Sent as part of the prompt because JSON mode
@@ -129,6 +102,7 @@ const OUTPUT_SCHEMA = `{
     }
   ],
   "coursework": ["string - only courses from the profile that are relevant to this posting"],
+  "certifications": ["string - names of the profile's certifications worth keeping for this posting; omit ones with no bearing on it"],
   "keywordsUsed": ["string - job description terms you were able to use truthfully"],
   "keywordsMissing": ["string - important job description terms the candidate has no basis to claim"]
 }`;
@@ -203,6 +177,9 @@ page aimed at one job. Choose what earns its place:
   You may only list skills already in the profile.
 - COURSEWORK: keep only courses relevant to this posting. Return an empty array if
   none are. Only use course names exactly as they appear in the profile.
+- CERTIFICATIONS: keep the ones that carry weight for this posting and drop the rest.
+  A certification in an unrelated field earns no space on a one-page resume. Return
+  the names exactly as the profile gives them, or an empty array if none apply.
 
 Judge relevance generously rather than strictly: something loosely related is
 usually worth keeping, something with no connection at all is not.
@@ -232,6 +209,8 @@ function buildUserPrompt({ profile, jobDescription, resumeType, extraInstruction
     summary: profile.summary,
     skills: profile.skills,
     coursework: profile.coursework,
+    // Names only: the model chooses which to keep, never rewrites them.
+    certifications: (profile.certifications || []).map((c) => c.name),
     experience: profile.experience,
     projects: profile.projects,
   };

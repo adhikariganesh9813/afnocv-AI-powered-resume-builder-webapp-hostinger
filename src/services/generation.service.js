@@ -4,13 +4,16 @@ const deepseek = require('./deepseek.service');
 const resumePrompt = require('../prompts/resume.prompt');
 const coverLetterPrompt = require('../prompts/coverLetter.prompt');
 
-const RESUME_TYPES = ['natural', 'basic_match', 'max_match', 'ultra_match'];
+// Three levels, not four. "ultra_match" was folded into max_match, which is now
+// the strongest alignment available. The database enum still lists ultra_match so
+// that generations created before the change remain readable; it is simply no
+// longer an accepted input.
+const RESUME_TYPES = ['natural', 'basic_match', 'max_match'];
 
 const RESUME_TYPE_TEMPERATURE = {
   natural: 0,
-  basic_match: 0.2,
-  max_match: 0.4,
-  ultra_match: 0.5,
+  basic_match: 0.35,
+  max_match: 0.5,
 };
 const SKILL_CATEGORIES = ['Programming Languages', 'Frameworks/Tools'];
 
@@ -137,6 +140,16 @@ function normalizeAiOutput(ai, profile, resumeType) {
     ? (profile.coursework || []).filter((c) => courseworkKeep.has(c.toLowerCase()))
     : profile.coursework || [];
 
+  // Certifications likewise: the model picks which are worth the space, but the
+  // rows themselves come from the profile, so a name or issuer can never be
+  // altered or invented. An empty selection is honoured — a certification with no
+  // bearing on the job is worth dropping — unless the model returned nothing at
+  // all, which is treated as "no opinion" rather than "remove them".
+  const certKeep = new Set(toStringArray(ai.certifications).map((c) => c.toLowerCase()));
+  const certifications = Array.isArray(ai.certifications)
+    ? (profile.certifications || []).filter((c) => certKeep.has((c.name || '').toLowerCase()))
+    : profile.certifications || [];
+
   // Experience and projects are matched back to the profile by position so the
   // AI cannot add, drop, or reattribute a role — only its bullets are taken.
   // At "natural" the contract is that wording is untouched, so the profile's own
@@ -182,7 +195,7 @@ function normalizeAiOutput(ai, profile, resumeType) {
     summary: typeof ai.summary === 'string' && ai.summary.trim() ? ai.summary.trim() : profile.summary,
     skills,
     education: profile.education,
-    certifications: profile.certifications,
+    certifications,
     coursework,
     experience,
     projects: finalProjects,

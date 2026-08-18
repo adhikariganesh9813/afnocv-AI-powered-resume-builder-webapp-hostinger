@@ -14,6 +14,22 @@ The owner also has no prior React experience and has never built an API in a pro
 
 **Deadline: 2026-08-18** (originally). As of 2026-08-16, scope grew (see below) and the owner explicitly accepted this deadline will likely slip — prioritizing a proper multi-user system over hitting the 18th. Outside of that one deliberate trade-off, scope is still kept tight — no other gold-plating, no other speculative features.
 
+## Generation rules (owner's consolidated spec, 2026-08-18 — authoritative)
+
+What the generator must do, section by section. Later work should be checked against this list.
+
+| Section | Rule |
+|---|---|
+| Professional summary | Rewritten for the posting at every level except `natural`, with alignment scaling by level. |
+| Technical skills | AI selects the relevant subset from the profile. Never invents one; profile order preserved. |
+| Education | Untouched. Passed straight through from the profile. |
+| Certifications | AI decides which to keep based on relevance to the posting. Names/issuers come from the profile and are never rewritten. |
+| Coursework | AI selects the relevant subset. |
+| Professional experience | Only the bullets change. Company, title, location and dates are never touched. `natural` keeps bullets verbatim; `basic_match` rewrites for moderate alignment; `max_match` rewrites for the strongest alignment. |
+| Projects | Titles never change. Bullets rewritten by level exactly as for experience. AI selects which projects are relevant enough to include. |
+
+**Three levels, not four.** `ultra_match` was retired on 2026-08-18 and its aggressiveness folded into `max_match`, which is now the strongest available. The database enum still lists `ultra_match` so the two generations created under it stay readable; the application rejects it as input.
+
 ## Product shape (added 2026-08-16)
 
 The app is a small multi-user SaaS, not a single-user local tool:

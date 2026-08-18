@@ -6,6 +6,7 @@ const RESUME_TYPE_LABELS = {
   natural: 'Natural',
   basic_match: 'Basic Match',
   max_match: 'Max Match',
+  // Retired, but older generations still carry it.
   ultra_match: 'Ultra Match',
 };
 
