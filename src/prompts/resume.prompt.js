@@ -10,18 +10,23 @@ const RESUME_TYPE_RULES = {
 - The only permitted change is fixing an outright spelling or punctuation error.
 - Your only work at this level is choosing which optional items are relevant enough to include (see SELECTING WHAT TO INCLUDE).`,
 
-  basic_match: `TAILORING LEVEL 2 of 3 — BASIC MATCH (genuine rewriting, moderate alignment).
+  basic_match: `TAILORING LEVEL 2 of 3 — BASIC MATCH (substantial rewriting).
 - EVERY bullet and the summary must be rewritten. The candidate's writing is already competent — that is NOT a reason to return anything unchanged. "It was already fine" is the most common failure at this level.
-- Rewrite each bullet so it speaks to this posting: lead with the part of the work the posting cares about, and use the posting's terminology wherever the candidate genuinely has that experience.
-- Keep the same facts, roughly the same length, and the same overall emphasis of the role.
-- This is real tailoring, not proofreading. A reader comparing this against the original should see every sentence rebuilt around the job.`,
+- Rewrite each bullet to lead with its outcome and mirror the posting's language and priorities, while describing the exact same work the candidate actually did.
+- Emphasise the parts of each role that map to the posting's stated responsibilities; compress the parts that do not.
+- Reuse the posting's exact terminology wherever the candidate's real experience genuinely maps onto it.
+- Keep roughly the same length. A reader comparing this against the original should see every sentence rebuilt around the job.`,
 
-  max_match: `TAILORING LEVEL 3 of 3 — MAX MATCH (maximum alignment; the strongest level available).
-- EVERY bullet and the summary must be rewritten, with no exceptions. An already-good sentence still gets rewritten.
-- Rewrite each bullet to open with the posting's most relevant term, lead with the outcome, and carry as many of the posting's genuine keywords as the candidate's real work honestly supports.
-- Mirror the posting's phrasing closely — its exact tool, method and process names — wherever they truthfully describe what the candidate did.
-- Emphasise the parts of each role that map to the posting's stated responsibilities and compress the parts that do not.
-- The facts stay identical; only the wording changes. Rewriting is not fabricating, and caution about the latter is never a reason to skip the former.
+  max_match: `TAILORING LEVEL 3 of 3 — MAX MATCH (total rewriting; the strongest level available).
+- Rebuild every bullet FROM THE GROUND UP. Do not keep the original sentence's structure, clause order, or opening phrase. Start from the facts it contains and write a completely new sentence aimed at this posting.
+- Open each bullet with the posting's own terminology for that kind of work, and front-load the single most ATS-relevant term.
+- Reorder the facts INSIDE each bullet so what the posting cares about comes first and supporting detail follows. Expand what the posting emphasises into the main clause; compress what it does not into a trailing phrase.
+- Carry as many of the posting's genuine keywords as the candidate's real work honestly supports.
+- The finished bullet should not read as a reworded version of the original — it should read as though it was written for this job from the start.
+- Concretely: the opening word, the main verb, and the order of the clauses must ALL differ from the original bullet. Keep only the words the facts require — proper nouns, tool names, numbers.
+- EVERY bullet must OPEN with vocabulary lifted from the job posting itself. If the posting says "ETL/ELT pipelines", "monitoring", "data modelling", start the bullet with that phrasing where the candidate's work honestly fits it. This is the clearest difference between level 2 and level 3: at level 2 the posting's language appears somewhere in the bullet, at level 3 it is the first thing the reader sees.
+- Do not settle for the same rewrite level 2 would produce. If your bullet would be an acceptable level-2 answer, push it further: change what the sentence leads with, not just its verbs.
+- The facts stay identical; only the wording and ordering change. Rewriting is not fabricating, and caution about the latter is never a reason to skip the former.
 - If a keyword is not supported by the candidate's work, leave it out and report it in "keywordsMissing" — never let one missing keyword hold back the rewriting of everything else.`,
 };
 
@@ -37,13 +42,13 @@ Correct output:
 Reproduced word for word. The professional summary is likewise reproduced exactly.
 Anything else is wrong at this level.`,
 
-  basic_match: `EXAMPLE FOR THIS LEVEL
+  basic_match: `EXAMPLE FOR THIS LEVEL (on unrelated content — apply the method, never copy these sentences)
 Profile bullet:
-  "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
-Job posting says: "Automate recurring data-processing and reporting workflows using Python"
+  "Wrote scripts to check warehouse stock levels every night and email the results to the operations team."
+Job posting says: "monitoring and alerting", "operational reporting"
 Correct output:
-  "Automated recurring data-processing and reporting tasks in Python, accelerating downstream analysis."
-The same facts, rebuilt around the posting's wording and led by the relevant work.
+  "Automated nightly stock-level checks and reporting, emailing results to the operations team."
+The same work, re-expressed in the posting's language and led by the outcome.
 
 SUMMARY EXAMPLE
 Profile summary:
@@ -57,12 +62,25 @@ the rest is NOT enough — the sentences must actually be rebuilt.`,
 Profile bullet:
   "Used Python to automate and accelerate specific data-processing tasks in support of reporting and analysis."
 Job posting says: "Automate recurring data-processing and reporting workflows using Python", "ETL/ELT pipelines"
-Correct output:
-  "Built Python automation for recurring data-processing and reporting workflows, accelerating downstream analysis and reporting for business stakeholders."
-Every ATS-relevant term the candidate's real work supports is used, front-loaded.
-"ETL" is absent only because this particular task was never described that way — that
-single omission is the whole extent of the restraint, and it did not stop the sentence
-being fully rewritten.
+A level-2 answer would be:
+  "Automated recurring data-processing and reporting workflows in Python, accelerating analysis for business stakeholders."
+That is NOT enough here. Correct level-3 output:
+  "Built Python automation for recurring data-processing and reporting workflows, cutting turnaround on the reporting and analysis those workflows fed."
+Notice what changed: the sentence opens with the posting's own framing, the verb is
+different, the clause order is inverted, and nothing of the original sentence's shape
+survives. "ETL" is absent only because this particular task was never described that
+way — that single omission is the whole extent of the restraint.
+
+Second example, on unrelated content, showing how far the restructuring should go.
+Apply the METHOD shown here to the candidate's own bullets — never copy these
+sentences, they describe someone else's work:
+Profile bullet:
+  "Wrote scripts to check warehouse stock levels every night and email the results to the operations team."
+Job posting says: "monitoring and alerting", "operational reporting"
+Correct level-3 output:
+  "Automated nightly inventory monitoring and operational reporting, delivering stock-level results directly to the operations team."
+Note how little of the original wording survives: the verb, the opening, and the
+clause order all changed, while every fact stayed put.
 
 SUMMARY EXAMPLE
 Profile summary:
@@ -72,8 +90,7 @@ Correct output:
   "Software Engineer with 2+ years designing SQL Server schemas, building stored-procedure ETL workflows and automating data processing in Python across finance, sales and manufacturing systems. Experienced integrating third-party APIs into enterprise platforms. Currently completing an M.S. in Computer Science."
 Rebuilt from scratch around the posting's priorities — but opening with the REAL job
 title, not "Data engineer". Alignment comes from describing the work the posting
-wants, never from relabelling the person. Reusing the profile's sentence structure
-and swapping a word or two is a FAILURE at this level.`,
+wants, never from relabelling the person.`,
 };
 
 // The shape we require back. Sent as part of the prompt because JSON mode

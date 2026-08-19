@@ -10,10 +10,13 @@ const coverLetterPrompt = require('../prompts/coverLetter.prompt');
 // longer an accepted input.
 const RESUME_TYPES = ['natural', 'basic_match', 'max_match'];
 
+// Higher sampling at the upper levels: rebuilding a sentence from scratch needs
+// more latitude to find new phrasing than tightening one does. Still well below
+// the range where invented facts start appearing.
 const RESUME_TYPE_TEMPERATURE = {
   natural: 0,
-  basic_match: 0.35,
-  max_match: 0.5,
+  basic_match: 0.5,
+  max_match: 0.7,
 };
 const SKILL_CATEGORIES = ['Programming Languages', 'Frameworks/Tools'];
 
