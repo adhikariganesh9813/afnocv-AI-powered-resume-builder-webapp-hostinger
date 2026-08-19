@@ -26,6 +26,7 @@ What the generator must do, section by section. Later work should be checked aga
 | Certifications | AI decides which to keep based on relevance to the posting. Names/issuers come from the profile and are never rewritten. |
 | Coursework | AI selects the relevant subset. |
 | Professional experience | Only the bullets change. Company, title, location and dates are never touched. `natural` keeps bullets verbatim; `basic_match` rewrites for moderate alignment; `max_match` rewrites for the strongest alignment. |
+| Job titles | **Never invented.** The candidate may only be described using titles that appear in their own experience entries. Alignment comes from describing the work, never from relabelling the person. |
 | Projects | Titles never change. Bullets rewritten by level exactly as for experience. AI selects which projects are relevant enough to include. |
 
 **Three levels, not four.** `ultra_match` was retired on 2026-08-18 and its aggressiveness folded into `max_match`, which is now the strongest available. The database enum still lists `ultra_match` so the two generations created under it stay readable; the application rejects it as input.

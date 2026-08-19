@@ -49,8 +49,9 @@ SUMMARY EXAMPLE
 Profile summary:
   "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
 Correct output:
-  "Software engineer with 2+ years building SQL Server solutions and data integrations inside an enterprise ERP environment, including stored-procedure ETL work and Python automation. Currently completing an M.S. in Computer Science."
-Changing two or three words and keeping the rest is NOT enough — the sentences must actually be rebuilt.`,
+  "Software Engineer with 2+ years building SQL Server solutions and data integrations inside an enterprise ERP environment, including stored-procedure ETL work and Python automation. Currently completing an M.S. in Computer Science."
+Note the title is the candidate's REAL one. Changing two or three words and keeping
+the rest is NOT enough — the sentences must actually be rebuilt.`,
 
   max_match: `EXAMPLE FOR THIS LEVEL
 Profile bullet:
@@ -68,9 +69,11 @@ Profile summary:
   "M.S. Computer Science student at Texas Tech University with 2+ years of professional experience developing and customizing enterprise ERP software for a precision electronics manufacturer, with a focus on SQL Server database development and backend development in C#/VB.NET."
 Job posting is for a Data Engineer building ETL pipelines with SQL and Python.
 Correct output:
-  "Data-focused software engineer with 2+ years designing SQL Server schemas, stored-procedure ETL workflows and Python automation across finance, sales and manufacturing systems. Experienced integrating third-party APIs into enterprise platforms. Currently completing an M.S. in Computer Science."
-Rebuilt from scratch around the posting's priorities. Reusing the profile's sentence
-structure and swapping a word or two is a FAILURE at this level.`,
+  "Software Engineer with 2+ years designing SQL Server schemas, building stored-procedure ETL workflows and automating data processing in Python across finance, sales and manufacturing systems. Experienced integrating third-party APIs into enterprise platforms. Currently completing an M.S. in Computer Science."
+Rebuilt from scratch around the posting's priorities — but opening with the REAL job
+title, not "Data engineer". Alignment comes from describing the work the posting
+wants, never from relabelling the person. Reusing the profile's sentence structure
+and swapping a word or two is a FAILURE at this level.`,
 };
 
 // The shape we require back. Sent as part of the prompt because JSON mode
@@ -135,7 +138,8 @@ is required.
 6. Every bullet must describe work the candidate actually reported. Rephrasing is allowed; fabricating is not.
 7. NEVER present an unfinished qualification as finished. If the candidate is a student, or a degree has a future or "expected" end date, they do NOT hold that degree. Write "M.S. Computer Science student" or "currently pursuing", never "holds an M.S." or "M.S. in Computer Science" as a completed credential. Check the EDUCATION STATUS block below before writing the summary.
 8. Do not add qualifiers the profile does not support. No inventing scale ("extensive", "large-scale", "enterprise-wide"), frequency ("regularly", "daily"), setting ("in academic settings", "in production"), or extra activities ("code reviews", "on-call", "agile ceremonies") that the candidate never mentioned. If the profile says "specific data-processing tasks", do not upgrade it to "extensive data engineering".
-9. Do not invent connections between separate facts. If the profile lists a project and a certification, do not claim the project was done "as part of" the certification, or that one led to the other, unless the profile says so. State each fact on its own.
+9. NEVER give the candidate a job title they do not hold. The only job titles that exist are the ones listed under JOB TITLES below, taken from their actual employment. Do not open the summary with an invented identity — writing "Data engineer" when the profile says "Software Engineer" is a fabrication, however well it fits the posting. To signal fit, describe the WORK ("...building data pipelines and SQL Server solutions...") or use the real title. Never invent, upgrade, or re-label a role, and never coin a new one like "Data Engineering professional".
+10. Do not invent connections between separate facts. If the profile lists a project and a certification, do not claim the project was done "as part of" the certification, or that one led to the other, unless the profile says so. State each fact on its own.
 
 === WRITING STYLE ===
 
@@ -219,6 +223,13 @@ function buildUserPrompt({ profile, jobDescription, resumeType, extraInstruction
   // model inferred degree status from the summary text and turned "M.S. student"
   // into "holds an M.S." — claiming a credential the candidate has not earned.
   // Anything it returns for education is discarded, so this is safe to include.
+  // Listed explicitly so the model has no room to coin a better-fitting title:
+  // it repeatedly described a Software Engineer as a "Data engineer" when the
+  // posting asked for one.
+  const titles = [...new Set((profile.experience || []).map((e) => e.title).filter(Boolean))]
+    .map((t) => `- ${t}`)
+    .join('\n');
+
   // Status comes from the checkbox the user ticks, not from guessing at the date
   // text, so "still studying" is a stated fact rather than an inference.
   const educationStatus = (profile.education || [])
@@ -235,6 +246,13 @@ function buildUserPrompt({ profile, jobDescription, resumeType, extraInstruction
     .join('\n');
 
   return `${rules}
+
+=== JOB TITLES (the ONLY titles this candidate holds) ===
+
+${titles || '- none listed'}
+
+Any other title is a fabrication. This applies to the summary as much as to the
+experience entries.
 
 === EDUCATION STATUS (CONTEXT ONLY — do not output these, do not restate them as bullets) ===
 

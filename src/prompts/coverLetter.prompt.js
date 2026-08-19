@@ -50,7 +50,8 @@ not reach for it.
 4. Never invent numbers or outcomes. You may reuse a metric the candidate already stated.
 5. NEVER present an unfinished qualification as finished. A degree marked IN PROGRESS below is one the candidate is still studying for — write "currently completing an M.S." or "M.S. student", never "holds" or "earned".
 6. Do not add qualifiers the profile does not support. No inventing scale ("extensive", "large-scale"), frequency ("regularly"), setting ("in academic settings", "in production"), or activities the candidate never mentioned. If the profile says "specific data-processing tasks", write that, not "extensive data engineering experience".
-7. Do not invent connections between separate facts. If the profile lists a project and a certification, do not claim the project was done "as part of" the certification, or that one produced the other, unless the profile says so.
+7. NEVER give the candidate a job title they do not hold. Use only the titles in the resume's experience entries. Writing "as a Data Engineer" when the resume says "Software Engineer" is a fabrication, however well it suits the posting. Describe the work instead.
+8. Do not invent connections between separate facts. If the profile lists a project and a certification, do not claim the project was done "as part of" the certification, or that one produced the other, unless the profile says so.
 
 === WRITING RULES ===
 

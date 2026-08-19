@@ -57,6 +57,58 @@ function wordSimilarity(a, b) {
   return shared / Math.max(left.length, right.length);
 }
 
+// Role nouns a summary uses to state what the candidate *is*. "engineering" and
+// similar gerunds are excluded on purpose: describing the work is allowed, it is
+// claiming the identity that is not.
+const ROLE_NOUNS = [
+  'engineer',
+  'developer',
+  'analyst',
+  'scientist',
+  'architect',
+  'administrator',
+  'consultant',
+  'specialist',
+  'programmer',
+];
+
+// Finds job titles the summary claims that the candidate does not actually hold.
+//
+// The model kept opening summaries with "Data engineer" for a candidate whose
+// only title is "Software Engineer" — a good fit for the posting and a plain
+// fabrication. Titles are checked against the profile's real ones; anything else
+// is reported so the caller can ask again.
+function inventedTitles(summary, profile) {
+  const text = String(summary || '');
+  if (!text.trim()) return [];
+
+  const held = (profile.experience || [])
+    .map((e) => String(e.title || '').toLowerCase())
+    .filter(Boolean);
+
+  const pattern = new RegExp(`\\b([a-z][\\w-]*)[\\s-]+(${ROLE_NOUNS.join('|')})\\b`, 'gi');
+  const found = new Set();
+
+  for (const match of text.matchAll(pattern)) {
+    const phrase = `${match[1]} ${match[2]}`.toLowerCase();
+    // "senior software engineer" in the profile covers "software engineer" here.
+    if (!held.some((title) => title.includes(phrase))) found.add(match[0]);
+  }
+
+  // "Data Engineering professional with 2+ years..." is the same fabrication in
+  // different clothes, but "professional" cannot simply be banned — it is normal
+  // in "professional experience" and appears inside certificate names. So it is
+  // only treated as a title when it opens the summary as an identity claim.
+  const opening = text.match(/^\s*([\w-]+(?:\s+[\w-]+)?)\s+professional\b/i);
+  if (opening) {
+    const claimed = opening[1].toLowerCase();
+    const isRealField = held.some((title) => title.includes(claimed.replace(/ing\b/, '')));
+    if (!isRealField) found.add(opening[0].trim());
+  }
+
+  return [...found];
+}
+
 // Counts bullets that came back byte-identical to the profile.
 //
 // Compared bullet by bullet rather than array against array: the model often
@@ -275,12 +327,28 @@ async function generate(userId, { jobDescription, resumeType }) {
   // than an earlier one — an observed run went 7/7 unchanged, then 2/7, then
   // back to 4/7, and shipping "last" would have thrown away the good middle
   // result. Tracking the minimum means retrying can only ever help.
-  let best = { resume, ...countUnchangedBullets(resume, profile) };
+  const scoreOf = (candidate) => ({
+    resume: candidate,
+    ...countUnchangedBullets(candidate, profile),
+    titles: inventedTitles(candidate.summary, profile),
+  });
 
-  for (let attempt = 1; attempt <= 2 && resumeType !== 'natural' && best.unchanged > 0; attempt += 1) {
-    console.warn(
-      `Generation: ${resumeType} left ${best.unchanged}/${best.total} bullets unchanged; retrying (attempt ${attempt}).`
-    );
+  let best = scoreOf(resume);
+
+  for (
+    let attempt = 1;
+    attempt <= 2 && resumeType !== 'natural' && (best.unchanged > 0 || best.titles.length);
+    attempt += 1
+  ) {
+    if (best.titles.length) {
+      console.warn(
+        `Generation: ${resumeType} claimed a title the candidate does not hold (${best.titles.join(', ')}); retrying (attempt ${attempt}).`
+      );
+    } else {
+      console.warn(
+        `Generation: ${resumeType} left ${best.unchanged}/${best.total} bullets unchanged; retrying (attempt ${attempt}).`
+      );
+    }
 
     resumeResponse = await askForResume(
       `YOUR PREVIOUS ATTEMPT FAILED: ${best.unchanged} of ${best.total} bullets came back word for word ` +
@@ -290,13 +358,37 @@ async function generate(userId, { jobDescription, resumeType }) {
         'in particular must be re-angled toward this posting, not repeated from the profile. ' +
         'Keep every fact exactly as given; change only how it is worded. Rewriting is not fabricating. ' +
         'If a bullet already reads well, rewrite it anyway — "it was already good" is not a valid ' +
-        'reason to return it unchanged at this level.',
+        'reason to return it unchanged at this level.' +
+        (best.titles.length
+          ? ` YOU ALSO GAVE THE CANDIDATE A JOB TITLE THEY DO NOT HOLD: ${best.titles.join(', ')}. ` +
+            'Use only the titles listed under JOB TITLES, or describe the work without naming a role. ' +
+            'Never relabel the person to suit the posting.'
+          : ''),
       attempt * 0.2
     );
 
-    const candidate = normalizeAiOutput(resumeResponse.json, profile, resumeType);
-    const score = countUnchangedBullets(candidate, profile);
-    if (score.unchanged < best.unchanged) best = { resume: candidate, ...score };
+    const score = scoreOf(normalizeAiOutput(resumeResponse.json, profile, resumeType));
+
+    // A fabricated title outranks leftover wording: a resume that reads a little
+    // close to the original is a weak result, one that misstates the candidate's
+    // role is a wrong one.
+    const better =
+      best.titles.length && !score.titles.length
+        ? true
+        : !best.titles.length && score.titles.length
+          ? false
+          : score.unchanged < best.unchanged;
+
+    if (better) best = score;
+  }
+
+  // Last resort: if every attempt invented a title, fall back to the profile's own
+  // summary. Less tailored, but it never misrepresents who the candidate is.
+  if (best.titles.length) {
+    console.warn(
+      `Generation: ${resumeType} kept claiming ${best.titles.join(', ')}; falling back to the profile summary.`
+    );
+    best = { ...best, resume: { ...best.resume, summary: profile.summary }, titles: [] };
   }
 
   resume = best.resume;
